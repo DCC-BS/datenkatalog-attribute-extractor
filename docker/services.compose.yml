@@ -1,0 +1,100 @@
+services:
+  llm:
+    platform: linux/amd64
+    image: vllm/vllm-openai:v0.24.0
+    container_name: llm
+    expose:
+      - "8000"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${LLM_GPU_COUNT:-2}
+              capabilities: [gpu]
+    ipc: host
+    volumes:
+      - ${HUGGING_FACE_CACHE_DIR:-${HOME}/.cache/huggingface}:/root/.cache/huggingface
+    # Adapted from text-mate-backend, with three deliberate changes for vision input:
+    #   * --limit-mm-per-prompt allows one image per request; the text-only config used
+    #     image: 0, which rejects every image request outright.
+    #   * --disable_chunked_mm_input removed, because it blocks image prefill.
+    #   * --mm-processor-kwargs raises the per-image token budget from the default 280 to
+    #     560; 280 is too coarse to read dense German form labels reliably.
+    #     Allowed values: 70, 140, 280, 560, 1120.
+    # The tool-calling flags are intentionally absent: structured output goes through vLLM's
+    # guided JSON decoding, so no tool parser and no custom chat template are needed.
+    #
+    # Two further changes were forced by measurement, not preference:
+    #   * --max-model-len is set explicitly. text-mate used `auto`, which silently shrinks to
+    #     whatever KV cache happens to be left: on one 4090 with --cpu-offload-gb 10 it
+    #     resolved to 2544 tokens, far too small for prompt + page image + answer, and
+    #     extraction failed on every page with an unhelpful "Connection error."
+    #   * --tensor-parallel-size 2 and no --cpu-offload-gb. The 31B NVFP4 weights on a single
+    #     24 GB card left only 2.15 GiB for KV cache. Split across both 4090s there is room
+    #     for a real context, and CPU offload is no longer needed.
+    command: >
+      --port 8000
+      --model ${LLM_HF_MODEL:-RedHatAI/gemma-4-31B-it-NVFP4}
+      --served-model-name ${LLM_MODEL:-Gemma/Gemma-4-31B}
+      --max-model-len ${LLM_MAX_MODEL_LEN:-16384}
+      --max-num-batched-tokens 4096
+      --gpu-memory-utilization 0.92
+      --tensor-parallel-size ${LLM_TENSOR_PARALLEL_SIZE:-2}
+      --max-num-seqs ${LLM_MAX_NUM_SEQS:-1}
+      --reasoning-parser gemma4
+      --async-scheduling
+      --enforce-eager
+      --limit-mm-per-prompt '{"image": 1, "video": 0}'
+      --mm-processor-kwargs '{"max_soft_tokens": ${LLM_IMAGE_SOFT_TOKENS:-560}}'
+      --uvicorn-log-level warning
+
+  app-backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ghcr.io/dcc-bs/datenkatalog-attribute-extractor:latest
+    container_name: app-backend
+    expose:
+      - "8000"
+    environment:
+      - IS_PROD=${IS_PROD:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LLM_URL=http://llm:8000/v1
+      - LLM_MODEL=${LLM_MODEL:-Gemma/Gemma-4-31B}
+      - LLM_API_KEY=${LLM_API_KEY:-not-needed}
+      - LLM_HEALTH_CHECK_URL=http://llm:8000/health
+      - LLM_HEALTH_TIMEOUT=${LLM_HEALTH_TIMEOUT:-5}
+      - LLM_MIN_CONTEXT_TOKENS=${LLM_MIN_CONTEXT_TOKENS:-8192}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-300}
+      - LLM_MAX_CONCURRENCY=${LLM_MAX_CONCURRENCY:-1}
+      - PDF_RENDER_DPI=${PDF_RENDER_DPI:-200}
+      - MAX_PAGES=${MAX_PAGES:-30}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-25}
+      - CLIENT_URL=${CLIENT_URL:-http://localhost:8501}
+    depends_on:
+      - llm
+
+  app-frontend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ghcr.io/dcc-bs/datenkatalog-attribute-extractor:latest
+    container_name: app-frontend
+    expose:
+      - "8501"
+    environment:
+      - BACKEND_URL=http://app-backend:8000
+      - STREAMLIT_SERVER_MAX_UPLOAD_SIZE=${MAX_UPLOAD_MB:-25}
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    command:
+      - streamlit
+      - run
+      - /app/src/datenkatalog_attribute_extractor/ui/streamlit_app.py
+    depends_on:
+      - app-backend
