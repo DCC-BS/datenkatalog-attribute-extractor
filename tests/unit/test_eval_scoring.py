@@ -11,7 +11,7 @@ CASE_FILE = Path(__file__).resolve().parents[2] / "evals" / "cases" / "example.j
 
 def make_form_field(name: str, label: str) -> FormField:
     """Build a named field for scoring tests."""
-    return FormField(name=name, label=label, context_path=[], page=1)
+    return FormField(name=name, display_name=label, label=label, context_path=[], page=1)
 
 
 def make_case(expected: list[str]) -> EvalCase:

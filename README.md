@@ -30,6 +30,31 @@ the model choose prefixes would make the core feature untestable. So the model s
 structure and the code guarantees uniqueness. A form asking twice for `Familienname:` yields
 `vater_familienname` and `mutter_familienname`.
 
+Every field carries two names, built from the same label and the same disambiguation:
+
+| | `name` | `display_name` |
+|---|---|---|
+| Familienname under *Vater* | `vater_familienname` | `Vater Familienname` |
+| AHV-Nummer | `ahv_nummer` | `AHV-Nummer` |
+| Grösse | `groesse` | `Grösse` |
+
+`display_name` is derived from the label, never by un-slugging `name` — otherwise
+`ahv_nummer` would come back as "Ahv Nummer" and `groesse` as "Groesse".
+
+## Reviewing in the UI
+
+Upload and status live in the sidebar; the main area is the work. Two views share one
+editable table, so an edit in either is visible in the other:
+
+* **Vergleich mit PDF** — the rendered page next to the fields found on *that* page. One
+  selector drives both, which is how you check the extraction against the original.
+* **Alle Felder** — the whole document in one table, plus **CSV herunterladen**.
+
+Both name columns are editable. Duplicate detection always runs across the whole document,
+not just the visible page. The CSV is comma-separated with a UTF-8 BOM, so umlauts survive
+being opened in Excel; switch `CSV_SEPARATOR` in `ui/field_table.py` to `;` if you would
+rather have Excel split the columns automatically.
+
 ## Quick start
 
 ```bash

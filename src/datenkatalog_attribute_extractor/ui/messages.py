@@ -2,8 +2,27 @@
 
 from typing import Any
 
+from datenkatalog_attribute_extractor.services.naming import DUPLICATE_WARNING_PREFIX
+
 HTTP_SERVICE_UNAVAILABLE = 503
 HTTP_UNSUPPORTED_MEDIA_TYPE = 415
+
+
+def split_warnings(warnings: list[str]) -> tuple[list[str], list[str]]:
+    """Separate routine renames from warnings that need attention.
+
+    A form with repeated captions produces dozens of rename notices. Listing them next to a
+    genuine problem — a page that could not be read — buries the one entry that matters.
+
+    Args:
+        warnings: The `warnings` array of an extraction result.
+
+    Returns:
+        A tuple of (renames, problems).
+    """
+    renames = [warning for warning in warnings if warning.startswith(DUPLICATE_WARNING_PREFIX)]
+    problems = [warning for warning in warnings if not warning.startswith(DUPLICATE_WARNING_PREFIX)]
+    return renames, problems
 
 
 def describe_error(payload: dict[str, Any]) -> str:

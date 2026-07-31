@@ -5,6 +5,7 @@ import pytest
 from datenkatalog_attribute_extractor.services.naming import (
     MAX_NAME_LENGTH,
     ensure_unique_names,
+    humanise,
     slugify,
 )
 from tests.factories import make_field
@@ -186,6 +187,116 @@ def test_ensure_unique_names_preserves_input_order_and_metadata() -> None:
     assert [field.label for field in fields] == ["Name:", "Ort:"]
     assert [field.page for field in fields] == [1, 2]
     assert [field.context_path for field in fields] == [["A"], ["B"]]
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("Name:", "Name"),
+        ("*Strasse:", "Strasse"),
+        ("AHV-Nummer:", "AHV-Nummer"),
+        ("E-Mail:", "E-Mail"),
+        ("Grösse (in cm)", "Grösse (in cm)"),
+        ("Vorname(n):", "Vorname(n)"),
+        ("  Telefon  ", "Telefon"),
+        ("Geburtsdatum/Ort:", "Geburtsdatum/Ort"),
+    ],
+)
+def test_humanise_strips_decoration_but_keeps_the_original_spelling(label: str, expected: str) -> None:
+    assert humanise(label) == expected
+
+
+def test_humanise_does_not_transliterate_or_lowercase() -> None:
+    """The readable name exists precisely so that AHV-Nummer does not become ahv_nummer."""
+    assert humanise("Grösse") == "Grösse"
+    assert humanise("AHV-Nummer") == "AHV-Nummer"
+
+
+def test_display_name_for_a_unique_label_is_just_the_cleaned_label() -> None:
+    fields, _ = ensure_unique_names([make_field(label="*Strasse:", context_path=["Angaben"])])
+
+    assert fields[0].name == "strasse"
+    assert fields[0].display_name == "Strasse"
+
+
+def test_display_name_carries_the_same_disambiguating_heading_as_the_technical_name() -> None:
+    fields, _ = ensure_unique_names(
+        [
+            make_field(label="Familienname:", context_path=["Gesetzliche Vertreter", "Vater"]),
+            make_field(label="Familienname:", context_path=["Gesetzliche Vertreter", "Mutter"]),
+        ]
+    )
+
+    assert [field.name for field in fields] == ["vater_familienname", "mutter_familienname"]
+    assert [field.display_name for field in fields] == ["Vater Familienname", "Mutter Familienname"]
+
+
+def test_display_name_keeps_umlauts_and_casing_the_technical_name_loses() -> None:
+    fields, _ = ensure_unique_names(
+        [
+            make_field(label="AHV-Nummer:", context_path=["Schülerin / Schüler"]),
+            make_field(label="AHV-Nummer:", context_path=["Gesetzliche Vertreter"]),
+        ]
+    )
+
+    assert fields[0].name == "schuelerin_schueler_ahv_nummer"
+    assert fields[0].display_name == "Schülerin / Schüler AHV-Nummer"
+
+
+def test_display_name_grows_with_the_technical_name_when_deeper_context_is_needed() -> None:
+    fields, _ = ensure_unique_names(
+        [
+            make_field(label="Strasse:", context_path=["Vater", "Adresse"]),
+            make_field(label="Strasse:", context_path=["Mutter", "Adresse"]),
+        ]
+    )
+
+    assert [field.name for field in fields] == ["vater_adresse_strasse", "mutter_adresse_strasse"]
+    assert [field.display_name for field in fields] == ["Vater Adresse Strasse", "Mutter Adresse Strasse"]
+
+
+def test_display_name_notes_the_page_when_that_is_what_disambiguated() -> None:
+    fields, _ = ensure_unique_names(
+        [
+            make_field(label="Unterschrift:", context_path=[], page=3),
+            make_field(label="Unterschrift:", context_path=[], page=7),
+        ]
+    )
+
+    assert [field.name for field in fields] == ["unterschrift_p3", "unterschrift_p7"]
+    assert [field.display_name for field in fields] == ["Unterschrift (Seite 3)", "Unterschrift (Seite 7)"]
+
+
+def test_display_name_takes_a_counter_when_nothing_else_distinguishes_the_fields() -> None:
+    fields, _ = ensure_unique_names(
+        [
+            make_field(label="Bemerkung:", context_path=[], page=1),
+            make_field(label="Bemerkung:", context_path=[], page=1),
+        ]
+    )
+
+    assert [field.name for field in fields] == ["bemerkung", "bemerkung_2"]
+    assert [field.display_name for field in fields] == ["Bemerkung", "Bemerkung 2"]
+
+
+def test_display_name_falls_back_when_the_label_is_only_decoration() -> None:
+    fields, _ = ensure_unique_names([make_field(label="***", context_path=[])])
+
+    assert fields[0].name == "feld"
+    assert fields[0].display_name == "Feld"
+
+
+def test_every_field_gets_a_non_empty_display_name() -> None:
+    fields, _ = ensure_unique_names(
+        [
+            make_field(label="Name:", context_path=["Vater"]),
+            make_field(label="Name:", context_path=["Mutter"]),
+            make_field(label="Ort:", context_path=[]),
+            make_field(label="*", context_path=[]),
+        ]
+    )
+
+    assert all(field.display_name.strip() for field in fields)
 
 
 def test_ensure_unique_names_always_produces_globally_unique_names() -> None:

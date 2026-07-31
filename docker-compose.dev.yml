@@ -6,6 +6,9 @@ services:
     ports:
       - "${LLM_API_PORT:-8001}:8000"
 
+  # PYTHONPATH puts the mounted source ahead of the copy installed into the venv. Without it
+  # the bind mount only replaces the entrypoint script while every import still resolves to
+  # the image's build, which silently mixes new code with old.
   app-backend:
     extends:
       file: ./docker/services.compose.yml
@@ -13,6 +16,7 @@ services:
     environment:
       - IS_PROD=false
       - LOG_LEVEL=DEBUG
+      - PYTHONPATH=/app/src
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -22,6 +26,8 @@ services:
     extends:
       file: ./docker/services.compose.yml
       service: app-frontend
+    environment:
+      - PYTHONPATH=/app/src
     ports:
       - "${FRONTEND_PORT:-8501}:8501"
     volumes:
