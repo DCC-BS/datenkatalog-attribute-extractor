@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from dcc_backend_common.logger import get_logger
 
 from datenkatalog_attribute_extractor.models.enums import SourceKind
-from datenkatalog_attribute_extractor.models.extraction import ExtractionRequest, PageResult
+from datenkatalog_attribute_extractor.models.extraction import ExtractionSource, PageResult, UploadSource
 from datenkatalog_attribute_extractor.services.agents.form_field_agent import FormFieldExtractionAgent
 from datenkatalog_attribute_extractor.services.llm_health import (
     LlmHealthProbe,
@@ -55,11 +55,13 @@ class PdfFieldExtractor:
         self._max_pages = max_pages
         self._semaphore = asyncio.Semaphore(max_concurrency)
 
-    def supports(self, media_type: str) -> bool:
-        """Report whether the media type is a PDF."""
-        return media_type.split(";")[0].strip().lower() in PDF_MEDIA_TYPES
+    def supports(self, source: ExtractionSource) -> bool:
+        """Report whether the source is an upload with a PDF media type."""
+        if not isinstance(source, UploadSource):
+            return False
+        return source.media_type.split(";")[0].strip().lower() in PDF_MEDIA_TYPES
 
-    async def extract(self, request: ExtractionRequest) -> AsyncIterator[PageResult]:
+    async def extract(self, source: ExtractionSource) -> AsyncIterator[PageResult]:
         """Render and read every page of the PDF.
 
         The LLM is checked first, before anything is rasterised: without it no page can
@@ -70,23 +72,27 @@ class PdfFieldExtractor:
         one unreadable page cannot lose the others.
 
         Args:
-            request: The uploaded PDF.
+            source: The uploaded PDF.
 
         Yields:
             One `PageResult` per page, in document order.
 
         Raises:
             LlmUnavailableError: If the LLM is unreachable, or becomes unusable mid-run.
+            TypeError: If handed a source this extractor does not support.
         """
+        if not isinstance(source, UploadSource):
+            raise TypeError(f"PdfFieldExtractor cannot handle {type(source).__name__}")
+
         await self._health_probe.ensure_available()
 
         images = await render_pdf_pages_async(
-            request.content,
+            source.content,
             dpi=self._render_dpi,
             max_pages=self._max_pages,
         )
         total_pages = len(images)
-        logger.info("pdf_rendered", filename=request.filename, pages=total_pages, dpi=self._render_dpi)
+        logger.info("pdf_rendered", filename=source.filename, pages=total_pages, dpi=self._render_dpi)
 
         for image in images:
             yield await self._extract_page(image, total_pages)

@@ -1,8 +1,5 @@
 """The vision agent that reads form fields off a rendered page."""
 
-import json
-from functools import lru_cache
-from importlib import resources
 from types import NoneType
 from typing import override
 
@@ -12,26 +9,11 @@ from pydantic_ai import Agent, BinaryContent, NativeOutput
 from pydantic_ai.models import Model
 
 from datenkatalog_attribute_extractor.models.field import PageExtraction
+from datenkatalog_attribute_extractor.services.agents.instructions import load_instructions
 
-PROMPT_PACKAGE = "datenkatalog_attribute_extractor.prompts"
 PROMPT_FILE = "pdf_form_fields.md"
 
 TEMPERATURE = 0.0
-
-
-@lru_cache(maxsize=1)
-def build_instructions() -> str:
-    """Load the extraction prompt and inline the expected output schema.
-
-    vLLM constrains generation to the JSON schema but does not show the model the schema's
-    field descriptions, so the schema is repeated in the prompt text.
-
-    Returns:
-        The full instruction text for the agent.
-    """
-    template = resources.files(PROMPT_PACKAGE).joinpath(PROMPT_FILE).read_text(encoding="utf-8")
-    schema = json.dumps(PageExtraction.model_json_schema(), indent=2, ensure_ascii=False)
-    return template.replace("{schema}", schema)
 
 
 class FormFieldExtractionAgent(BaseAgent[None, PageExtraction]):
@@ -68,7 +50,7 @@ class FormFieldExtractionAgent(BaseAgent[None, PageExtraction]):
             model=model,
             deps_type=NoneType,
             output_type=NativeOutput(PageExtraction),
-            instructions=build_instructions(),
+            instructions=load_instructions(PROMPT_FILE),
         )
 
     async def extract_page(self, png_bytes: bytes) -> PageExtraction:

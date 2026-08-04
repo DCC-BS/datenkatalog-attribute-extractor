@@ -6,8 +6,9 @@ from dcc_backend_common.logger import get_logger
 
 from datenkatalog_attribute_extractor.models.extraction import (
     ExtractionProgress,
-    ExtractionRequest,
     ExtractionResponse,
+    ExtractionSource,
+    UploadSource,
 )
 from datenkatalog_attribute_extractor.models.field import ExtractedField
 from datenkatalog_attribute_extractor.services.extractors.protocol import ExtractorRegistry
@@ -59,24 +60,30 @@ class ExtractionService:
         self._registry = registry
         self._max_upload_bytes = max_upload_bytes
 
-    def _validate(self, request: ExtractionRequest) -> None:
+    def _validate(self, source: ExtractionSource) -> None:
         """Reject uploads that are empty or too large.
+
+        The size limit guards the bytes a caller pushed at us, so it applies to uploads only.
+        A URL costs nothing to accept here; what it may fetch is bounded by the extractor.
 
         Raises:
             EmptyDocumentError: If the upload has no content.
             DocumentTooLargeError: If the upload exceeds the configured limit.
         """
-        size = len(request.content)
+        if not isinstance(source, UploadSource):
+            return
+
+        size = len(source.content)
         if size == 0:
             raise EmptyDocumentError
         if size > self._max_upload_bytes:
             raise DocumentTooLargeError(size, self._max_upload_bytes)
 
-    async def extract(self, request: ExtractionRequest) -> ExtractionResponse:
-        """Extract all form fields from a document.
+    async def extract(self, source: ExtractionSource) -> ExtractionResponse:
+        """Extract all form fields from a source.
 
         Args:
-            request: The uploaded document.
+            source: The uploaded document or URL to read.
 
         Returns:
             The completed field inventory with unique names.
@@ -84,10 +91,10 @@ class ExtractionService:
         Raises:
             EmptyDocumentError: If the upload has no content.
             DocumentTooLargeError: If the upload is too large.
-            UnsupportedSourceError: If no extractor handles the media type.
+            UnsupportedSourceError: If no extractor handles the source.
         """
         response: ExtractionResponse | None = None
-        async for event in self.extract_streaming(request):
+        async for event in self.extract_streaming(source):
             if isinstance(event, ExtractionResponse):
                 response = event
 
@@ -95,11 +102,11 @@ class ExtractionService:
             raise RuntimeError("Extraction finished without producing a result")
         return response
 
-    async def extract_streaming(self, request: ExtractionRequest) -> AsyncIterator[ExtractionEvent]:
-        """Extract form fields, reporting progress as each page completes.
+    async def extract_streaming(self, source: ExtractionSource) -> AsyncIterator[ExtractionEvent]:
+        """Extract form fields, reporting progress as each unit of work completes.
 
         Args:
-            request: The uploaded document.
+            source: The uploaded document or URL to read.
 
         Yields:
             An `ExtractionProgress` after every page, then exactly one `ExtractionResponse`.
@@ -107,24 +114,23 @@ class ExtractionService:
         Raises:
             EmptyDocumentError: If the upload has no content.
             DocumentTooLargeError: If the upload is too large.
-            UnsupportedSourceError: If no extractor handles the media type.
+            UnsupportedSourceError: If no extractor handles the source.
         """
-        self._validate(request)
-        extractor = self._registry.resolve(request.media_type)
+        self._validate(source)
+        extractor = self._registry.resolve(source)
 
         logger.info(
             "extraction_started",
-            filename=request.filename,
-            media_type=request.media_type,
+            source_name=source.name,
             source_kind=extractor.source_kind,
-            size_bytes=len(request.content),
+            size_bytes=len(source.content) if isinstance(source, UploadSource) else None,
         )
 
         collected: list[ExtractedField] = []
         warnings: list[str] = []
         page_count = 0
 
-        async for page_result in extractor.extract(request):
+        async for page_result in extractor.extract(source):
             collected.extend(page_result.fields)
             warnings.extend(page_result.warnings)
             page_count = max(page_count, page_result.page)
@@ -139,14 +145,14 @@ class ExtractionService:
 
         logger.info(
             "extraction_finished",
-            filename=request.filename,
+            source_name=source.name,
             pages=page_count,
             fields=len(fields),
             warnings=len(warnings),
         )
 
         yield ExtractionResponse(
-            source_name=request.filename,
+            source_name=source.name,
             source_kind=extractor.source_kind,
             page_count=page_count,
             fields=fields,

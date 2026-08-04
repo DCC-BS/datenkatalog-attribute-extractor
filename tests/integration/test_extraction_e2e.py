@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from datenkatalog_attribute_extractor.container import Container
-from datenkatalog_attribute_extractor.models.extraction import ExtractionRequest
+from datenkatalog_attribute_extractor.models.extraction import UploadSource
 
 EXAMPLE_PDF = Path(__file__).resolve().parents[2] / "data" / "example.pdf"
 
@@ -28,9 +28,9 @@ def service():
 
 
 @pytest.fixture(scope="module")
-def request_payload() -> ExtractionRequest:
-    """The bundled example questionnaire as an extraction request."""
-    return ExtractionRequest(
+def request_payload() -> UploadSource:
+    """The bundled example questionnaire as an upload source."""
+    return UploadSource(
         content=EXAMPLE_PDF.read_bytes(),
         filename=EXAMPLE_PDF.name,
         media_type="application/pdf",

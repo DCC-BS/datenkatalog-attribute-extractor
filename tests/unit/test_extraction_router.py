@@ -11,11 +11,21 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from datenkatalog_attribute_extractor.models.enums import SourceKind
-from datenkatalog_attribute_extractor.models.extraction import ExtractionRequest, PageResult
+from datenkatalog_attribute_extractor.models.extraction import (
+    ExtractionSource,
+    PageResult,
+    UploadSource,
+    UrlSource,
+)
 from datenkatalog_attribute_extractor.routers.extraction import create_router, resolve_media_type
 from datenkatalog_attribute_extractor.services.extraction_service import ExtractionService
 from datenkatalog_attribute_extractor.services.extractors.protocol import ExtractorRegistry
 from datenkatalog_attribute_extractor.services.llm_health import LlmUnavailableError
+from datenkatalog_attribute_extractor.services.web.firecrawl_client import (
+    FirecrawlUnavailableError,
+    PageUnreadableError,
+)
+from datenkatalog_attribute_extractor.services.web.url_policy import UnsafeUrlError
 from datenkatalog_attribute_extractor.utils.sse import parse_sse
 from tests.factories import make_field
 from tests.unit.test_extraction_service import StubExtractor
@@ -44,10 +54,10 @@ class UnavailableLlmExtractor:
 
     source_kind = SourceKind.PDF
 
-    def supports(self, media_type: str) -> bool:
-        return media_type == "application/pdf"
+    def supports(self, source: ExtractionSource) -> bool:
+        return isinstance(source, UploadSource) and source.media_type == "application/pdf"
 
-    async def extract(self, request: ExtractionRequest) -> AsyncIterator[PageResult]:
+    async def extract(self, source: ExtractionSource) -> AsyncIterator[PageResult]:
         raise LlmUnavailableError("http://llm:8000/health", "Connection refused")
         yield  # pragma: no cover - makes this an async generator
 
@@ -184,3 +194,106 @@ def test_resolve_media_type_strips_parameters_from_the_content_type() -> None:
         filename = "form.pdf"
 
     assert resolve_media_type(Upload()) == "application/pdf"
+
+
+class StubWebExtractor:
+    """A web extractor that replays canned results, or raises."""
+
+    source_kind = SourceKind.WEB
+
+    def __init__(self, pages: list[PageResult] | None = None, error: Exception | None = None) -> None:
+        self._pages = pages if pages is not None else PAGES
+        self._error = error
+
+    def supports(self, source: ExtractionSource) -> bool:
+        return isinstance(source, UrlSource)
+
+    async def extract(self, source: ExtractionSource) -> AsyncIterator[PageResult]:
+        if self._error is not None:
+            raise self._error
+        for page in self._pages:
+            yield page
+
+
+FORM_URL = "https://example.org/anmeldung"
+
+
+def test_extract_from_url_returns_uniquely_named_fields() -> None:
+    client = build_client(extractor=StubWebExtractor())
+
+    response = client.post("/extraction/form-fields/url", json={"url": FORM_URL})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_kind"] == "web"
+    assert body["source_name"] == FORM_URL
+    names = [field["name"] for field in body["fields"]]
+    assert len(names) == len(set(names))
+
+
+def test_extract_from_url_rejects_a_malformed_url() -> None:
+    client = build_client(extractor=StubWebExtractor())
+
+    response = client.post("/extraction/form-fields/url", json={"url": "not a url"})
+
+    assert response.status_code == 422
+
+
+def test_extract_from_url_reports_an_unsafe_url_as_a_client_error() -> None:
+    """An internal address is the caller's mistake, not an outage."""
+    error = UnsafeUrlError("http://127.0.0.1/x", "the host resolves to the internal address 127.0.0.1")
+    client = build_client(extractor=StubWebExtractor(error=error))
+
+    response = client.post("/extraction/form-fields/url", json={"url": FORM_URL})
+
+    assert response.status_code == 400
+
+
+def test_extract_from_url_reports_an_unreadable_page_as_a_client_error() -> None:
+    error = PageUnreadableError(FORM_URL, "it answered HTTP 404 (Not Found)")
+    client = build_client(extractor=StubWebExtractor(error=error))
+
+    response = client.post("/extraction/form-fields/url", json={"url": FORM_URL})
+
+    assert response.status_code == 400
+
+
+def test_extract_from_url_reports_firecrawl_being_down_as_unavailable() -> None:
+    error = FirecrawlUnavailableError("http://fc:3002/v2/scrape", "ConnectTimeout")
+    client = build_client(extractor=StubWebExtractor(error=error))
+
+    response = client.post("/extraction/form-fields/url", json={"url": FORM_URL})
+
+    assert response.status_code == 503
+
+
+def test_streaming_from_url_emits_progress_then_a_result() -> None:
+    client = build_client(extractor=StubWebExtractor())
+
+    with client.stream("POST", "/extraction/form-fields/url/stream", json={"url": FORM_URL}) as response:
+        assert response.status_code == 200
+        events = list(parse_sse(response.iter_lines()))
+
+    kinds = [event for event, _ in events]
+    assert kinds.count("progress") == len(PAGES)
+    assert kinds[-1] == "result"
+
+
+def test_streaming_from_url_reports_a_mid_stream_failure_as_an_error_event() -> None:
+    """The HTTP status is already sent by then, so the failure has to travel in the stream."""
+    error = FirecrawlUnavailableError("http://fc:3002/v2/scrape", "ConnectTimeout")
+    client = build_client(extractor=StubWebExtractor(error=error))
+
+    with client.stream("POST", "/extraction/form-fields/url/stream", json={"url": FORM_URL}) as response:
+        assert response.status_code == 200
+        events = list(parse_sse(response.iter_lines()))
+
+    assert [event for event, _ in events] == ["error"]
+
+
+def test_a_url_source_does_not_reach_the_pdf_extractor() -> None:
+    client = build_client()
+
+    response = client.post("/extraction/form-fields/url", json={"url": FORM_URL})
+
+    assert response.status_code == 415

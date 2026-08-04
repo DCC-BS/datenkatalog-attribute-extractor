@@ -7,7 +7,7 @@ import openai
 import pytest
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 
-from datenkatalog_attribute_extractor.models.extraction import ExtractionRequest
+from datenkatalog_attribute_extractor.models.extraction import UploadSource
 from datenkatalog_attribute_extractor.models.field import PageExtraction
 from datenkatalog_attribute_extractor.services.extraction_service import ExtractionService
 from datenkatalog_attribute_extractor.services.extractors.pdf_extractor import PdfFieldExtractor
@@ -68,9 +68,9 @@ def make_extractor(agent: CountingAgent, *, healthy: bool) -> PdfFieldExtractor:
     )
 
 
-def pdf_request() -> ExtractionRequest:
-    """The bundled 7-page example as a request."""
-    return ExtractionRequest(
+def pdf_request() -> UploadSource:
+    """The bundled 7-page example as an upload source."""
+    return UploadSource(
         content=EXAMPLE_PDF.read_bytes(),
         filename="example.pdf",
         media_type="application/pdf",

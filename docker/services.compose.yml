@@ -75,6 +75,10 @@ services:
       - MAX_PAGES=${MAX_PAGES:-30}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-25}
       - CLIENT_URL=${CLIENT_URL:-http://localhost:8501}
+      # Reachable by service name on the compose network when the `web` profile is up. In
+      # production this points at the cluster's Firecrawl instead, and no local containers run.
+      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3002}
+      - FIRECRAWL_TIMEOUT=${FIRECRAWL_TIMEOUT:-120}
     depends_on:
       - llm
 

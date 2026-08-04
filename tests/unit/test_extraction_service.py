@@ -7,9 +7,11 @@ import pytest
 from datenkatalog_attribute_extractor.models.enums import SourceKind
 from datenkatalog_attribute_extractor.models.extraction import (
     ExtractionProgress,
-    ExtractionRequest,
     ExtractionResponse,
+    ExtractionSource,
     PageResult,
+    UploadSource,
+    UrlSource,
 )
 from datenkatalog_attribute_extractor.services.extraction_service import (
     DocumentTooLargeError,
@@ -32,17 +34,17 @@ class StubExtractor:
         self._pages = pages
         self._media_type = media_type
 
-    def supports(self, media_type: str) -> bool:
-        return media_type == self._media_type
+    def supports(self, source: ExtractionSource) -> bool:
+        return isinstance(source, UploadSource) and source.media_type == self._media_type
 
-    async def extract(self, request: ExtractionRequest) -> AsyncIterator[PageResult]:
+    async def extract(self, source: ExtractionSource) -> AsyncIterator[PageResult]:
         for page in self._pages:
             yield page
 
 
-def make_request(content: bytes = b"%PDF-1.5 fake", media_type: str = "application/pdf") -> ExtractionRequest:
-    """Build an extraction request for tests."""
-    return ExtractionRequest(content=content, filename="form.pdf", media_type=media_type)
+def make_request(content: bytes = b"%PDF-1.5 fake", media_type: str = "application/pdf") -> UploadSource:
+    """Build an upload source for tests."""
+    return UploadSource(content=content, filename="form.pdf", media_type=media_type)
 
 
 def make_service(pages: list[PageResult], *, max_upload_bytes: int = 1_000_000) -> ExtractionService:
@@ -116,6 +118,29 @@ async def test_extract_with_oversized_document_raises_too_large_error() -> None:
 async def test_extract_with_unsupported_media_type_raises_unsupported_source_error() -> None:
     with pytest.raises(UnsupportedSourceError):
         await make_service(TWO_PAGES).extract(make_request(media_type="text/plain"))
+
+
+async def test_extract_with_a_url_source_and_no_web_extractor_raises_unsupported_source_error() -> None:
+    with pytest.raises(UnsupportedSourceError, match="URL"):
+        await make_service(TWO_PAGES).extract(UrlSource(url="https://example.org/formular"))
+
+
+async def test_extract_with_a_url_source_skips_the_upload_size_limit() -> None:
+    """A URL carries no bytes, so the upload guards must not fire on it.
+
+    The service is built with a 4-byte limit and a registry holding only a PDF extractor:
+    reaching UnsupportedSourceError proves validation let the URL through rather than
+    rejecting it as empty or oversized.
+    """
+    service = make_service(TWO_PAGES, max_upload_bytes=4)
+
+    with pytest.raises(UnsupportedSourceError):
+        await service.extract(UrlSource(url="https://example.org/a-very-long-url-well-past-four-bytes"))
+
+
+def test_upload_and_url_sources_both_report_a_name_for_the_response() -> None:
+    assert make_request().name == "form.pdf"
+    assert UrlSource(url="https://example.org/formular").name == "https://example.org/formular"
 
 
 async def test_extract_with_a_document_yielding_no_fields_returns_an_empty_inventory() -> None:

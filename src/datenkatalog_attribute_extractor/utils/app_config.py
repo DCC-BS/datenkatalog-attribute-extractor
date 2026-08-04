@@ -41,6 +41,20 @@ class AppConfig(LlmConfig):
     )
     max_pages: int = Field(default=30, ge=1, description="Maximum number of pages processed per document")
     max_upload_mb: int = Field(default=25, ge=1, description="Maximum accepted upload size in megabytes")
+    firecrawl_api_url: str = Field(
+        default="http://localhost:3002",
+        description="Base URL of the Firecrawl instance used to scrape web forms",
+    )
+    firecrawl_timeout: int = Field(
+        default=120,
+        ge=1,
+        description="Seconds to wait for a Firecrawl scrape, which renders the page in a real browser",
+    )
+    max_web_units: int = Field(
+        default=30,
+        ge=1,
+        description="Maximum HTML chunks processed per web page, mirroring max_pages",
+    )
     client_url: str = Field(default="http://localhost:8501", description="Origin allowed by CORS")
     backend_url: str = Field(
         default="http://localhost:8000",
@@ -56,6 +70,14 @@ class AppConfig(LlmConfig):
     def llm_models_url(self) -> str:
         """The OpenAI-compatible `/models` endpoint of the LLM service."""
         return f"{self.llm_url.rstrip('/')}/models"
+
+    @property
+    def firecrawl_scrape_url(self) -> str:
+        """The Firecrawl scrape endpoint.
+
+        Firecrawl 2.x serves the v2 API; the v1 path is still routed but deprecated upstream.
+        """
+        return f"{self.firecrawl_api_url.rstrip('/')}/v2/scrape"
 
     @classmethod
     @override
@@ -84,6 +106,9 @@ class AppConfig(LlmConfig):
             max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "25")),
             client_url=os.getenv("CLIENT_URL", "http://localhost:8501"),
             backend_url=os.getenv("BACKEND_URL", "http://localhost:8000"),
+            firecrawl_api_url=os.getenv("FIRECRAWL_API_URL", "http://localhost:3002"),
+            firecrawl_timeout=int(os.getenv("FIRECRAWL_TIMEOUT", "120")),
+            max_web_units=int(os.getenv("MAX_WEB_UNITS", "30")),
         )
 
     @override
@@ -104,5 +129,8 @@ class AppConfig(LlmConfig):
             f"max_pages={self.max_pages}, "
             f"max_upload_mb={self.max_upload_mb}, "
             f"client_url={self.client_url}, "
-            f"backend_url={self.backend_url})"
+            f"backend_url={self.backend_url}, "
+            f"firecrawl_api_url={self.firecrawl_api_url}, "
+            f"firecrawl_timeout={self.firecrawl_timeout}, "
+            f"max_web_units={self.max_web_units})"
         )

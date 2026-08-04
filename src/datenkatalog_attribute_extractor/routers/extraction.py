@@ -14,8 +14,11 @@ from fastapi.responses import StreamingResponse
 from datenkatalog_attribute_extractor.container import Container
 from datenkatalog_attribute_extractor.models.extraction import (
     ExtractionProgress,
-    ExtractionRequest,
     ExtractionResponse,
+    ExtractionSource,
+    UploadSource,
+    UrlExtractionRequest,
+    UrlSource,
 )
 from datenkatalog_attribute_extractor.services.extraction_service import (
     DocumentTooLargeError,
@@ -24,6 +27,11 @@ from datenkatalog_attribute_extractor.services.extraction_service import (
 )
 from datenkatalog_attribute_extractor.services.extractors.protocol import UnsupportedSourceError
 from datenkatalog_attribute_extractor.services.llm_health import LlmUnavailableError
+from datenkatalog_attribute_extractor.services.web.firecrawl_client import (
+    FirecrawlUnavailableError,
+    PageUnreadableError,
+)
+from datenkatalog_attribute_extractor.services.web.url_policy import UnsafeUrlError
 from datenkatalog_attribute_extractor.utils.sse import format_sse
 
 logger = get_logger(__name__)
@@ -58,17 +66,17 @@ def resolve_media_type(upload: UploadFile) -> str:
     return EXTENSION_MEDIA_TYPES.get(suffix, declared or OCTET_STREAM)
 
 
-async def build_request(upload: UploadFile) -> ExtractionRequest:
-    """Read an upload into an extraction request.
+async def build_upload_source(upload: UploadFile) -> UploadSource:
+    """Read an upload into an extraction source.
 
     Args:
         upload: The uploaded file.
 
     Returns:
-        The request to hand to the extraction service.
+        The source to hand to the extraction service.
     """
     content = await upload.read()
-    return ExtractionRequest(
+    return UploadSource(
         content=content,
         filename=upload.filename or "unnamed",
         media_type=resolve_media_type(upload),
@@ -90,13 +98,15 @@ def to_api_error(error: Exception) -> Exception:
             status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             debugMessage=str(error),
         )
-    if isinstance(error, DocumentTooLargeError | EmptyDocumentError):
+    # A rejected URL and a page that will not load are both the caller's problem, not ours:
+    # they describe the request, so they must not read as a service outage.
+    if isinstance(error, DocumentTooLargeError | EmptyDocumentError | UnsafeUrlError | PageUnreadableError):
         return api_error_exception(
             errorId=ApiErrorCodes.INVALID_REQUEST,
             status=status.HTTP_400_BAD_REQUEST,
             debugMessage=str(error),
         )
-    if isinstance(error, LlmUnavailableError):
+    if isinstance(error, LlmUnavailableError | FirecrawlUnavailableError):
         return api_error_exception(
             errorId=ApiErrorCodes.SERVICE_UNAVAILABLE,
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -130,9 +140,9 @@ def create_router(
         Runs to completion before responding. For documents of more than a few pages,
         prefer the streaming endpoint so the caller sees progress.
         """
-        request = await build_request(file)
+        source = await build_upload_source(file)
         try:
-            return await extraction_service.extract(request)
+            return await extraction_service.extract(source)
         except Exception as error:
             raise to_api_error(error) from error
 
@@ -144,24 +154,61 @@ def create_router(
         that occur once streaming has begun are reported as an `error` event, because the
         HTTP status has already been sent.
         """
-        request = await build_request(file)
+        source = await build_upload_source(file)
+        return stream_extraction(extraction_service, source)
 
-        async def generate() -> AsyncIterator[str]:
-            try:
-                async for event in extraction_service.extract_streaming(request):
-                    if isinstance(event, ExtractionProgress):
-                        yield format_sse("progress", event.model_dump_json())
-                    else:
-                        yield format_sse("result", event.model_dump_json())
-            except asyncio.CancelledError:
-                logger.info("extraction_cancelled", filename=request.filename)
-                raise
-            except Exception as error:
-                logger.exception("extraction_stream_failed", filename=request.filename)
-                api_error = to_api_error(error)
-                payload = getattr(api_error, "error_response", {"debugMessage": str(error)})
-                yield format_sse("error", json.dumps(payload))
+    @router.post("/form-fields/url", response_model=ExtractionResponse)
+    async def extract_form_fields_from_url(request: UrlExtractionRequest) -> ExtractionResponse:
+        """Extract every form field of an online form.
 
-        return StreamingResponse(generate(), media_type="text/event-stream", headers=SSE_HEADERS)
+        The page is fetched once. A form split across several pages is not followed; where the
+        page looks like one step of several, the response carries a warning saying so.
+        """
+        try:
+            return await extraction_service.extract(UrlSource(url=str(request.url)))
+        except Exception as error:
+            raise to_api_error(error) from error
+
+    @router.post("/form-fields/url/stream")
+    async def extract_form_fields_from_url_streaming(request: UrlExtractionRequest) -> StreamingResponse:
+        """Extract form fields from an online form, streaming progress as server-sent events.
+
+        Emits the same `progress`, `result` and `error` events as the upload endpoint, so a
+        client needs no separate handling for the two kinds of source.
+        """
+        return stream_extraction(extraction_service, UrlSource(url=str(request.url)))
 
     return router
+
+
+def stream_extraction(extraction_service: ExtractionService, source: ExtractionSource) -> StreamingResponse:
+    """Run an extraction and report it as server-sent events.
+
+    Shared by the upload and URL endpoints: the event contract does not depend on where the
+    fields came from, and neither does what a mid-stream failure has to look like.
+
+    Args:
+        extraction_service: The orchestrator.
+        source: The document or URL to read.
+
+    Returns:
+        A streaming response emitting `progress` events, then one `result` or `error` event.
+    """
+
+    async def generate() -> AsyncIterator[str]:
+        try:
+            async for event in extraction_service.extract_streaming(source):
+                if isinstance(event, ExtractionProgress):
+                    yield format_sse("progress", event.model_dump_json())
+                else:
+                    yield format_sse("result", event.model_dump_json())
+        except asyncio.CancelledError:
+            logger.info("extraction_cancelled", source_name=source.name)
+            raise
+        except Exception as error:
+            logger.exception("extraction_stream_failed", source_name=source.name)
+            api_error = to_api_error(error)
+            payload = getattr(api_error, "error_response", {"debugMessage": str(error)})
+            yield format_sse("error", json.dumps(payload))
+
+    return StreamingResponse(generate(), media_type="text/event-stream", headers=SSE_HEADERS)

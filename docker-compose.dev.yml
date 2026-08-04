@@ -32,3 +32,38 @@ services:
       - "${FRONTEND_PORT:-8501}:8501"
     volumes:
       - ./src:/app/src:ro
+
+  # Firecrawl sits behind the `web` profile, so `make docker-up` still starts only vLLM, the
+  # API and the UI. `make docker-up-web` adds these five containers on top. `profiles` has to
+  # be declared here rather than in the extended file, because `extends` does not carry it.
+  firecrawl-api:
+    extends:
+      file: ./docker/firecrawl.compose.yml
+      service: firecrawl-api
+    profiles: ["web"]
+    ports:
+      - "${FIRECRAWL_PORT:-3002}:3002"
+
+  firecrawl-playwright:
+    extends:
+      file: ./docker/firecrawl.compose.yml
+      service: firecrawl-playwright
+    profiles: ["web"]
+
+  firecrawl-redis:
+    extends:
+      file: ./docker/firecrawl.compose.yml
+      service: firecrawl-redis
+    profiles: ["web"]
+
+  firecrawl-rabbitmq:
+    extends:
+      file: ./docker/firecrawl.compose.yml
+      service: firecrawl-rabbitmq
+    profiles: ["web"]
+
+  firecrawl-postgres:
+    extends:
+      file: ./docker/firecrawl.compose.yml
+      service: firecrawl-postgres
+    profiles: ["web"]

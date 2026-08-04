@@ -140,11 +140,24 @@ class LlmHealthProbe:
         self._timeout = timeout_seconds
         self._min_context_tokens = min_context_tokens
         self._transport = transport
+        self._served_context_tokens: int | None = None
 
     @property
     def url(self) -> str:
         """The endpoint being probed."""
         return self._url
+
+    @property
+    def served_context_tokens(self) -> int | None:
+        """The `max_model_len` the provider last reported, or None if it never said.
+
+        Read off the same `/models` call that validates the model, so callers can size a
+        prompt to the context actually being served rather than to a number in a config file.
+        The two differ by more than an order of magnitude between environments here —
+        16384 on the development box against 250000 in production — which is the difference
+        between sending a form page in one call and having to split it.
+        """
+        return self._served_context_tokens
 
     @property
     def _headers(self) -> dict[str, str]:
@@ -201,6 +214,8 @@ class LlmHealthProbe:
             )
 
         context_length = served[self._model_name].get("max_model_len")
+        if isinstance(context_length, int):
+            self._served_context_tokens = context_length
         if isinstance(context_length, int) and context_length < self._min_context_tokens:
             logger.error(
                 "llm_context_too_small",

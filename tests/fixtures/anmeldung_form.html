@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Anmeldung Gymnasium</title>
+  <script>var tracking = {a: 1}; console.log("noise");</script>
+  <style>body { font-family: sans-serif; }</style>
+</head>
+<body>
+  <nav>
+    <input type="search" name="site_search" aria-label="Website durchsuchen">
+  </nav>
+
+  <h1>Anmeldung Gymnasium</h1>
+
+  <form action="/anmeldung" method="post">
+    <input type="hidden" name="csrf_token" value="abc123">
+
+    <h2>Angaben zur Schülerin / zum Schüler</h2>
+    <label for="s_name">Familienname:</label>
+    <input type="text" id="s_name" name="schueler_familienname">
+
+    <label for="s_vorname">Vorname:</label>
+    <input type="text" id="s_vorname" name="schueler_vorname">
+
+    <label for="s_ahv">AHV-Nummer:</label>
+    <input type="text" id="s_ahv" name="schueler_ahv">
+
+    <label>Grösse (in cm)
+      <input type="number" name="groesse">
+    </label>
+
+    <h2>Gesetzliche Vertreter</h2>
+
+    <fieldset>
+      <legend>Vater</legend>
+      <label for="v_name">Familienname:</label>
+      <input type="text" id="v_name" name="vater_familienname">
+      <label for="v_beruf">Beruf:</label>
+      <input type="text" id="v_beruf" name="vater_beruf">
+    </fieldset>
+
+    <fieldset>
+      <legend>Mutter</legend>
+      <label for="m_name">Familienname:</label>
+      <input type="text" id="m_name" name="mutter_familienname">
+      <label for="m_beruf">Beruf:</label>
+      <input type="text" id="m_beruf" name="mutter_beruf">
+    </fieldset>
+
+    <h2>Weitere Angaben</h2>
+
+    <fieldset>
+      <legend>Erziehungs- und Korrespondenzberechtigt</legend>
+      <label><input type="radio" name="berechtigt" value="beide"> beide Eltern</label>
+      <label><input type="radio" name="berechtigt" value="mutter"> nur Mutter</label>
+      <label><input type="radio" name="berechtigt" value="vater"> nur Vater</label>
+      <label><input type="radio" name="berechtigt" value="andere"> andere</label>
+    </fieldset>
+
+    <label for="schuljahr">Ich möchte in folgendes Schuljahr eintreten</label>
+    <select id="schuljahr" name="schuljahr">
+      <option>2026/27</option>
+      <option>2027/28</option>
+    </select>
+
+    <label for="bemerkungen">Bemerkungen:</label>
+    <textarea id="bemerkungen" name="bemerkungen"></textarea>
+
+    <label><input type="checkbox" name="agb"> Ich akzeptiere die Bedingungen</label>
+
+    <input type="submit" value="Absenden">
+  </form>
+
+  <footer>
+    <input type="email" name="newsletter" placeholder="Newsletter abonnieren">
+  </footer>
+</body>
+</html>

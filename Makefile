@@ -47,8 +47,12 @@ bootstrap-case: ## Generate an eval case skeleton from a PDF (PDF=path/to/file.p
 	@$(TOOLS) python -m $(PKG)_tools.bootstrap_case $(PDF)
 
 .PHONY: env-example
-env-example: ## Regenerate .env.example from the AppConfig model
-	@$(TOOLS) generate-env-example $(PKG).utils.app_config AppConfig -o .env.example
+env-example: ## Print the AppConfig section of .env.example (does NOT write the file)
+	@# Deliberately writes to stdout, not to .env.example. The generator emits only the
+	@# AppConfig fields with TODO placeholders, so writing the file in place destroys the
+	@# hand-maintained logging and docker-compose sections and the curated defaults.
+	@# Copy across what you need instead.
+	@$(TOOLS) generate-env-example $(PKG).utils.app_config AppConfig
 
 .PHONY: docker-build
 docker-build: ## Build the application image
@@ -60,10 +64,15 @@ docker-up: ## Start the full dev stack (vLLM, API, UI)
 	@echo "🐳 Starting docker compose"
 	@docker compose -f docker-compose.dev.yml up -d
 
+.PHONY: docker-up-web
+docker-up-web: ## Start the dev stack plus Firecrawl (needed for URL extraction)
+	@echo "🐳 Starting docker compose with the web profile"
+	@docker compose -f docker-compose.dev.yml --profile web up -d
+
 .PHONY: docker-down
-docker-down: ## Stop the dev stack
+docker-down: ## Stop the dev stack, including Firecrawl if it is running
 	@echo "🐳 Stopping docker compose"
-	@docker compose -f docker-compose.dev.yml down
+	@docker compose -f docker-compose.dev.yml --profile web down
 
 .PHONY: docker-logs
 docker-logs: ## Follow the dev stack logs

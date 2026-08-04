@@ -3,10 +3,13 @@
 from dependency_injector import containers, providers
 
 from datenkatalog_attribute_extractor.services.agents.form_field_agent import FormFieldExtractionAgent
+from datenkatalog_attribute_extractor.services.agents.web_field_agent import WebFieldExtractionAgent
 from datenkatalog_attribute_extractor.services.extraction_service import ExtractionService
 from datenkatalog_attribute_extractor.services.extractors.pdf_extractor import PdfFieldExtractor
 from datenkatalog_attribute_extractor.services.extractors.protocol import ExtractorRegistry
+from datenkatalog_attribute_extractor.services.extractors.web_extractor import WebFieldExtractor
 from datenkatalog_attribute_extractor.services.llm_health import LlmHealthProbe
+from datenkatalog_attribute_extractor.services.web.firecrawl_client import FirecrawlClient
 from datenkatalog_attribute_extractor.utils.app_config import AppConfig
 
 
@@ -45,9 +48,28 @@ class Container(containers.DeclarativeContainer):
         max_concurrency=config.provided.llm_max_concurrency,
     )
 
+    firecrawl_client: providers.Singleton[FirecrawlClient] = providers.Singleton(
+        FirecrawlClient,
+        scrape_url=config.provided.firecrawl_scrape_url,
+        timeout_seconds=config.provided.firecrawl_timeout,
+    )
+
+    web_field_agent: providers.Singleton[WebFieldExtractionAgent] = providers.Singleton(
+        WebFieldExtractionAgent,
+        config=config,
+    )
+
+    web_extractor: providers.Singleton[WebFieldExtractor] = providers.Singleton(
+        WebFieldExtractor,
+        agent=web_field_agent,
+        client=firecrawl_client,
+        health_probe=llm_health_probe,
+        max_units=config.provided.max_web_units,
+    )
+
     extractor_registry: providers.Singleton[ExtractorRegistry] = providers.Singleton(
         ExtractorRegistry,
-        extractors=providers.List(pdf_extractor),
+        extractors=providers.List(pdf_extractor, web_extractor),
     )
 
     extraction_service: providers.Singleton[ExtractionService] = providers.Singleton(

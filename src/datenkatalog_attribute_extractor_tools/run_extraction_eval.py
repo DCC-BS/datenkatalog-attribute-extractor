@@ -14,7 +14,7 @@ from pathlib import Path
 from dcc_backend_common.logger import init_logger
 
 from datenkatalog_attribute_extractor.container import Container
-from datenkatalog_attribute_extractor.models.extraction import ExtractionRequest
+from datenkatalog_attribute_extractor.models.extraction import UploadSource
 from datenkatalog_attribute_extractor_tools.acroform import read_acroform_fields
 from datenkatalog_attribute_extractor_tools.eval_models import CaseScore, EvalCase, score_case
 
@@ -47,12 +47,12 @@ async def evaluate(case: EvalCase) -> CaseScore:
         The score for this case.
     """
     service = Container().extraction_service()
-    request = ExtractionRequest(
+    source = UploadSource(
         content=case.pdf_path.read_bytes(),
         filename=case.pdf_path.name,
         media_type="application/pdf",
     )
-    response = await service.extract(request)
+    response = await service.extract(source)
     return score_case(case, response.fields)
 
 
