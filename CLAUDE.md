@@ -73,6 +73,13 @@ built from the *label*, never by un-slugging `name`: `AHV-Nummer` must not come 
   the context actually being served.
 - `services/web/` — `url_policy.py` (SSRF guard), `firecrawl_client.py` (scrape),
   `html_controls.py` (DOM → control listing), `chunking.py` (fit to context).
+  A generated DOM (Vaadin, most component frameworks) states no associations at all: no
+  `name`, no `<label>`, no heading tag, no `<form>`. `html_controls.py` therefore falls back
+  to the nearest neighbouring text as a caption and to bold text that is all its block holds
+  as a heading — always after every association the markup does state, never instead of one.
+  The `[ausserhalb eines <form>]` marker is emitted only where most controls are inside a
+  form; on a div-built page it would otherwise mark every real field as page furniture and the
+  model would discard the whole form.
 - `container.py` — dependency-injector wiring; `config` is a `Singleton` (not `Object`) so
   importing the container in tests/tooling/UI does not require a full environment.
 - `ui/` — Streamlit, a thin HTTP client over the streaming endpoint. The API stays independently
@@ -112,6 +119,11 @@ that can fail for the whole run fails before any model call. Firecrawl being dow
 - **HTTP 200 + `success: true` says nothing about the page.** A URL that answered 503 comes
   back as a success; the real status is `data.metadata.statusCode`. Partial results are
   announced in `data.warning`.
+- **Without `waitFor`, a client-rendered page scrapes as its loading shell.** The Vaadin form
+  at `fpbaselstadtsportamt.zetcom.app` returned 17 KB and zero controls; with `waitFor` it
+  returned 83 KB and 21. Measured on that page: 3000 ms shell, 5000 ms rendered, hence
+  `FIRECRAWL_WAIT_MS=8000`. Firecrawl's own `timeout` defaults to 30 s and is sent explicitly,
+  never below the wait.
 
 ### Context budgeting
 

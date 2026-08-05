@@ -21,7 +21,11 @@ from dataclasses import dataclass
 
 from dcc_backend_common.logger import get_logger
 
-from datenkatalog_attribute_extractor.services.web.html_controls import FormControl, render_listing
+from datenkatalog_attribute_extractor.services.web.html_controls import (
+    FormControl,
+    form_marker_is_informative,
+    render_listing,
+)
 
 logger = get_logger(__name__)
 
@@ -96,7 +100,10 @@ def split_controls(
         return []
 
     limit = budget_characters(served_context_tokens)
-    whole = render_listing(list(controls), title=title)
+    # Decided once for the page: whether a control sits outside a `<form>` only means anything
+    # relative to the rest of the page, and a chunk is too small a sample to judge it from.
+    mark_outside_form = form_marker_is_informative(list(controls))
+    whole = render_listing(list(controls), title=title, mark_outside_form=mark_outside_form)
 
     if len(whole) <= limit:
         return [ListingChunk(index=1, total=1, text=whole, control_count=len(controls))]
@@ -117,7 +124,11 @@ def split_controls(
         candidate = [*current, control]
 
         # A section is kept whole where possible: only start a new chunk at a boundary.
-        if current and key != current_key and len(render_listing(candidate, title=title)) > limit:
+        if (
+            current
+            and key != current_key
+            and len(render_listing(candidate, title=title, mark_outside_form=mark_outside_form)) > limit
+        ):
             groups.append(current)
             current = [control]
         else:
@@ -135,7 +146,7 @@ def split_controls(
         ListingChunk(
             index=position,
             total=total,
-            text=render_listing(group, title=title),
+            text=render_listing(group, title=title, mark_outside_form=mark_outside_form),
             control_count=len(group),
         )
         for position, group in enumerate(groups, start=1)

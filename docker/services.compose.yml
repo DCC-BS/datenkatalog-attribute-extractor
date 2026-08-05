@@ -79,6 +79,7 @@ services:
       # production this points at the cluster's Firecrawl instead, and no local containers run.
       - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3002}
       - FIRECRAWL_TIMEOUT=${FIRECRAWL_TIMEOUT:-120}
+      - FIRECRAWL_WAIT_MS=${FIRECRAWL_WAIT_MS:-8000}
     depends_on:
       - llm
 

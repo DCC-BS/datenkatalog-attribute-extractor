@@ -19,6 +19,14 @@ running 2.10.19 instance rather than taken from the documentation:
   chosen engine could not honour there rather than failing, so it is surfaced to the
   reviewer instead of being dropped.
 
+* **Without `waitFor`, a client-rendered form scrapes as an empty shell.** A Vaadin form
+  (`fpbaselstadtsportamt.zetcom.app`) returned 17 KB containing `<div class="v-app-loading">`
+  and zero controls; with `waitFor` the same URL returned 83 KB and 21 controls. The
+  reduction then found nothing and the run reported an empty inventory as a clean success —
+  the wrong answer the LLM health probe exists to prevent, arriving through the scrape
+  instead. On that page 3000 ms still returned the shell and 5000 ms returned the rendered
+  form, so the default sits above the measured boundary rather than on it.
+
 Screenshots are deliberately not requested. Self-hosted Firecrawl cannot produce them: its
 playwright engine adapter neither asks the browser service for one nor accepts one back —
 the response schema admits only `content`, `pageStatusCode`, `pageError` and `contentType`.
@@ -35,6 +43,18 @@ logger = get_logger(__name__)
 
 # Firecrawl reports the page's own status here; its HTTP status only describes the scrape.
 SUCCESSFUL_PAGE_STATUSES = range(200, 300)
+
+MILLISECONDS_PER_SECOND = 1000
+
+# Added to the HTTP timeout so Firecrawl's own deadline expires first. A scrape that ran out
+# of time then comes back as a Firecrawl response we can report, rather than as a client-side
+# read timeout that says nothing about why.
+HTTP_TIMEOUT_HEADROOM_SECONDS = 15
+
+# Time a scrape needs besides the wait: navigation, and reading the HTML back out. Only used
+# where the configured timeout is shorter than the configured wait, which would otherwise make
+# every scrape fail on a deadline it was never given a chance to meet.
+FETCH_AFTER_WAIT_MS = 15000
 
 
 class FirecrawlUnavailableError(RuntimeError):
@@ -89,6 +109,7 @@ class FirecrawlClient:
         *,
         scrape_url: str,
         timeout_seconds: int,
+        wait_ms: int,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         """Initialise the client.
@@ -96,6 +117,8 @@ class FirecrawlClient:
         Args:
             scrape_url: The full `/v2/scrape` endpoint.
             timeout_seconds: How long to wait for a scrape, which renders in a real browser.
+            wait_ms: How long the browser waits after load before the HTML is read, so a
+                client-rendered form is captured rendered rather than as its loading shell.
             transport: Optional httpx transport, used by tests to avoid real network calls.
 
         Note:
@@ -104,12 +127,18 @@ class FirecrawlClient:
         """
         self._scrape_url = scrape_url
         self._timeout = timeout_seconds
+        self._wait_ms = wait_ms
         self._transport = transport
 
     @property
     def url(self) -> str:
         """The endpoint this client calls."""
         return self._scrape_url
+
+    @property
+    def _deadline_ms(self) -> int:
+        """How long Firecrawl may take, in milliseconds, wait included."""
+        return max(self._timeout * MILLISECONDS_PER_SECOND, self._wait_ms + FETCH_AFTER_WAIT_MS)
 
     async def scrape(self, page_url: str) -> ScrapedPage:
         """Fetch one page as raw HTML.
@@ -131,10 +160,18 @@ class FirecrawlClient:
             # later by the control listing, and onlyMainContent has been seen to take real
             # fields with it, so the full document is requested and reduced under our rules.
             "onlyMainContent": False,
+            # A single-page app has not drawn its form yet when the document finishes loading.
+            "waitFor": self._wait_ms,
+            # Firecrawl's own deadline defaults to 30s and is stated rather than inherited. A
+            # deadline shorter than the wait would fail every scrape, so the wait wins where
+            # the two are configured against each other.
+            "timeout": self._deadline_ms,
         }
 
+        http_timeout = self._deadline_ms / MILLISECONDS_PER_SECOND + HTTP_TIMEOUT_HEADROOM_SECONDS
+
         try:
-            async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+            async with httpx.AsyncClient(timeout=http_timeout, transport=self._transport) as client:
                 response = await client.post(self._scrape_url, json=payload)
                 response.raise_for_status()
                 body = response.json()

@@ -74,7 +74,7 @@ def build_client(html: str = "", *, status: int = 200, fail: bool = False) -> Fi
         )
 
     return FirecrawlClient(
-        scrape_url="http://fc:3002/v2/scrape", timeout_seconds=5, transport=httpx.MockTransport(handle)
+        scrape_url="http://fc:3002/v2/scrape", timeout_seconds=5, wait_ms=0, transport=httpx.MockTransport(handle)
     )
 
 
@@ -219,6 +219,7 @@ async def test_a_firecrawl_partial_scrape_warning_reaches_the_reviewer() -> None
     client = FirecrawlClient(
         scrape_url="http://fc:3002/v2/scrape",
         timeout_seconds=5,
+        wait_ms=0,
         transport=httpx.MockTransport(handle),
     )
     extractor, _, _ = build_extractor(client=client)

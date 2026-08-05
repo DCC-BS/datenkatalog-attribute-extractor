@@ -50,6 +50,11 @@ class AppConfig(LlmConfig):
         ge=1,
         description="Seconds to wait for a Firecrawl scrape, which renders the page in a real browser",
     )
+    firecrawl_wait_ms: int = Field(
+        default=8000,
+        ge=0,
+        description="Milliseconds the browser waits after load before the HTML is read, so client-rendered forms are captured",
+    )
     max_web_units: int = Field(
         default=30,
         ge=1,
@@ -108,6 +113,7 @@ class AppConfig(LlmConfig):
             backend_url=os.getenv("BACKEND_URL", "http://localhost:8000"),
             firecrawl_api_url=os.getenv("FIRECRAWL_API_URL", "http://localhost:3002"),
             firecrawl_timeout=int(os.getenv("FIRECRAWL_TIMEOUT", "120")),
+            firecrawl_wait_ms=int(os.getenv("FIRECRAWL_WAIT_MS", "8000")),
             max_web_units=int(os.getenv("MAX_WEB_UNITS", "30")),
         )
 
@@ -132,5 +138,6 @@ class AppConfig(LlmConfig):
             f"backend_url={self.backend_url}, "
             f"firecrawl_api_url={self.firecrawl_api_url}, "
             f"firecrawl_timeout={self.firecrawl_timeout}, "
+            f"firecrawl_wait_ms={self.firecrawl_wait_ms}, "
             f"max_web_units={self.max_web_units})"
         )

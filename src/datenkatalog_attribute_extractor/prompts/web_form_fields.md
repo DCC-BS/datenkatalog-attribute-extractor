@@ -18,8 +18,11 @@ controls they contain.
 ```
 
 Each line carries the control kind in brackets, its label in quotes, its `name` attribute,
-and — for groups and dropdowns — the available options. A control that no `<form>` element
-encloses is marked `[ausserhalb eines <form>]`.
+and — for groups and dropdowns — the available options.
+
+`[ausserhalb eines <form>]` marks a control that no `<form>` element encloses. It appears only
+on pages where most controls *are* inside one, so that being outside stands out. On a page
+built without `<form>` elements no line carries it, and its absence says nothing.
 
 ## What counts as a field
 
@@ -30,8 +33,9 @@ done the grouping: **one line is one field**, including every `-gruppe` line.
 
 - **Controls marked `[ausserhalb eines <form>]`** are usually part of the website rather than
   the form: site search boxes, filter inputs, newsletter sign-ups, language pickers, cookie
-  settings, dark-mode toggles. Leave them out unless the page has no `<form>` at all and they
-  are plainly part of the questionnaire.
+  settings, dark-mode toggles. Leave them out unless they are plainly part of the
+  questionnaire. Where no line carries the marker, this rule does not apply at all — report
+  every control that a person filling in the form would answer.
 - Login and password fields, unless the form is itself a registration form.
 - The headings themselves — these belong in `context_path`, not as fields.
 - The individual options of a group. `Optionen:` is context to help you label the group, and

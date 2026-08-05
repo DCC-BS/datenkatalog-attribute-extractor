@@ -17,6 +17,7 @@ from datenkatalog_attribute_extractor.services.web.firecrawl_client import (
 )
 
 SCRAPE_URL = "http://firecrawl-api:3002/v2/scrape"
+WAIT_MS = 8000
 PAGE_URL = "https://example.org/formular"
 
 FORM_HTML = (
@@ -30,6 +31,7 @@ def build_client(handler) -> FirecrawlClient:
     return FirecrawlClient(
         scrape_url=SCRAPE_URL,
         timeout_seconds=5,
+        wait_ms=WAIT_MS,
         transport=httpx.MockTransport(handler),
     )
 
@@ -75,6 +77,36 @@ async def test_scrape_requests_raw_html_and_not_markdown() -> None:
     assert seen["formats"] == ["rawHtml"]
     assert seen["url"] == PAGE_URL
     assert seen["onlyMainContent"] is False
+
+
+async def test_scrape_waits_for_the_page_to_render() -> None:
+    """A client-rendered form scrapes as its loading shell without this — 0 controls, no error."""
+    seen: dict = {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=ok_body())
+
+    await build_client(handle).scrape(PAGE_URL)
+
+    assert seen["waitFor"] == WAIT_MS
+
+
+async def test_scrape_states_a_deadline_that_leaves_room_for_the_wait() -> None:
+    """A deadline shorter than the wait would fail every scrape before the page could render.
+
+    The client here is built with a 5 second timeout and an 8 second wait, which is exactly
+    that misconfiguration.
+    """
+    seen: dict = {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=ok_body())
+
+    await build_client(handle).scrape(PAGE_URL)
+
+    assert seen["timeout"] > seen["waitFor"]
 
 
 async def test_scrape_sends_no_authorization_header() -> None:

@@ -1,0 +1,548 @@
+<!DOCTYPE html><html><head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=11">
+  <style type="text/css" data-eqcss-read="true">html, body {height:100%;margin:0;}</style>
+  <link rel="shortcut icon" type="image/vnd.microsoft.icon" href="./../VAADIN/themes/MpRIATheme/favicon.ico">
+  <link rel="icon" type="image/vnd.microsoft.icon" href="./../VAADIN/themes/MpRIATheme/favicon.ico">
+  <meta name="robots" content="noindex, nofollow">
+  <script src="./../webjars/jquery/3.7.1/jquery.slim.min.js" type="text/javascript"></script>
+  <script src="./../webjars/bootstrap/4.6.0/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+  <script src="./../webjars/eqcss/1.7.0/EQCSS.min.js" type="text/javascript"></script>
+  <link href="./../webjars/bootstrap/4.6.0/css/bootstrap.min.css" rel="stylesheet" data-eqcss-read="true">
+  <link href="./../webjars/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" data-eqcss-read="true">
+ <link rel="stylesheet" type="text/css" href="./../VAADIN/themes/MpRIATheme/styles.css?v=8.30.0" data-eqcss-read="true"><script type="text/javascript" src="./../VAADIN/widgetsets/com.zetcom.mp.application.view.vaadin.MpRIAWidgetset/com.zetcom.mp.application.view.vaadin.MpRIAWidgetset.nocache.js?1785858127531"></script><script src="https://fpbaselstadtsportamt.zetcom.app/VAADIN/widgetsets/com.zetcom.mp.application.view.vaadin.MpRIAWidgetset/EEE3C5FB14ADE257F4E46EE12C796EB6.cache.js"></script><style>.leaflet-pane{position:absolute;left:0;top:0;}.leaflet-tile{position:absolute;left:0;top:0;-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none;filter:inherit;visibility:hidden;}.leaflet-marker-icon,.leaflet-marker-shadow{position:absolute;left:0;top:0;-webkit-user-select:none;-moz-user-select:none;user-select:none;-webkit-user-drag:none;display:block;}.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0;}.leaflet-container{overflow:hidden;-webkit-tap-highlight-color:transparent;background:#ddd;outline:0;font:12px/ 1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;}.leaflet-safari .leaflet-tile{image-rendering:-webkit-optimize-contrast;}.leaflet-safari .leaflet-tile-container{width:1600px;height:1600px;-webkit-transform-origin:0 0;}.leaflet-container .leaflet-overlay-pane svg,.leaflet-container .leaflet-marker-pane img,.leaflet-container .leaflet-shadow-pane img,.leaflet-container .leaflet-tile-pane img,.leaflet-container img.leaflet-image-layer{max-width:none !important;max-height:none !important;}.leaflet-container.leaflet-touch-zoom{-ms-touch-action:pan-x pan-y;touch-action:pan-x pan-y;}.leaflet-container.leaflet-touch-drag{-ms-touch-action:pinch-zoom;touch-action:none;touch-action:pinch-zoom;}.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom{-ms-touch-action:none;touch-action:none;}.leaflet-container a{-webkit-tap-highlight-color:rgba(51, 181, 229, 0.4);color:#0078a8;}.leaflet-tile-loaded{visibility:inherit;}.leaflet-zoom-box{width:0;height:0;-moz-box-sizing:border-box;box-sizing:border-box;z-index:800;border:2px dotted #38f;background:rgba(255, 255, 255, 0.5);}.leaflet-overlay-pane svg{-moz-user-select:none;}.leaflet-pane{z-index:400;}.leaflet-tile-pane{z-index:200;}.leaflet-overlay-pane{z-index:400;}.leaflet-shadow-pane{z-index:500;}.leaflet-marker-pane{z-index:600;}.leaflet-tooltip-pane{z-index:650;}.leaflet-popup-pane{z-index:700;}.leaflet-map-pane canvas{z-index:100;}.leaflet-map-pane svg{z-index:200;}.leaflet-vml-shape{width:1px;height:1px;}.lvml{behavior:url(#default#VML);display:inline-block;position:absolute;}.leaflet-control{position:relative;z-index:800;pointer-events:visiblePainted;pointer-events:auto;float:left;clear:both;}.leaflet-top{position:absolute;z-index:1000;pointer-events:none;top:0;}.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none;bottom:0;}.leaflet-right{right:0;}.leaflet-left{left:0;}.leaflet-right .leaflet-control{float:right;margin-right:10px;}.leaflet-top .leaflet-control{margin-top:10px;}.leaflet-bottom .leaflet-control{margin-bottom:10px;}.leaflet-left .leaflet-control{margin-left:10px;}.leaflet-fade-anim .leaflet-tile{will-change:opacity;}.leaflet-fade-anim .leaflet-popup{opacity:0;-webkit-transition:opacity 0.2s linear;-moz-transition:opacity 0.2s linear;-o-transition:opacity 0.2s linear;transition:opacity 0.2s linear;}.leaflet-fade-anim .leaflet-map-pane .leaflet-popup{opacity:1;}.leaflet-zoom-animated{-webkit-transform-origin:0 0;-ms-transform-origin:0 0;transform-origin:0 0;}.leaflet-zoom-anim .leaflet-zoom-animated{will-change:transform;-webkit-transition:-webkit-transform 0.25s cubic-bezier(0, 0, 0.25, 1);-moz-transition:-moz-transform 0.25s cubic-bezier(0, 0, 0.25, 1);-o-transition:-o-transform 0.25s cubic-bezier(0, 0, 0.25, 1);transition:transform 0.25s cubic-bezier(0, 0, 0.25, 1);}.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{-webkit-transition:none;-moz-transition:none;-o-transition:none;transition:none;}.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden;}.leaflet-interactive{cursor:pointer;}.leaflet-grab{cursor:-webkit-grab;cursor:-moz-grab;}.leaflet-crosshair,.leaflet-crosshair .leaflet-interactive{cursor:crosshair;}.leaflet-popup-pane,.leaflet-control{cursor:auto;}.leaflet-dragging .leaflet-grab,.leaflet-dragging .leaflet-grab .leaflet-interactive,.leaflet-dragging .leaflet-marker-draggable{cursor:move;cursor:-webkit-grabbing;cursor:-moz-grabbing;}.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-image-layer,.leaflet-pane>svg path,.leaflet-tile-container{pointer-events:none;}.leaflet-marker-icon.leaflet-interactive,.leaflet-image-layer.leaflet-interactive,.leaflet-pane>svg path.leaflet-interactive{pointer-events:visiblePainted;pointer-events:auto;}.leaflet-container a.leaflet-active{outline:2px solid orange;}.leaflet-bar{box-shadow:0 1px 5px rgba(0, 0, 0, 0.65);border-radius:4px;}.leaflet-bar a{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:black;}.leaflet-bar a:hover{background-color:#fff;border-bottom:1px solid #ccc;width:26px;height:26px;line-height:26px;display:block;text-align:center;text-decoration:none;color:black;background-color:#f4f4f4;}.leaflet-bar a,.leaflet-control-layers-toggle{background-position:50% 50%;background-repeat:no-repeat;display:block;}.leaflet-bar a:first-child{border-top-left-radius:4px;border-top-right-radius:4px;}.leaflet-bar a:last-child{border-bottom-left-radius:4px;border-bottom-right-radius:4px;border-bottom:none;}.leaflet-bar a.leaflet-disabled{cursor:default;background-color:#f4f4f4;color:#bbb;}.leaflet-touch .leaflet-bar a{width:30px;height:30px;line-height:30px;}.leaflet-touch .leaflet-bar a:first-child{border-top-left-radius:2px;border-top-right-radius:2px;}.leaflet-touch .leaflet-bar a:last-child{border-bottom-left-radius:2px;border-bottom-right-radius:2px;}.leaflet-control-zoom-in,.leaflet-control-zoom-out{font:bold 18px "Lucida Console", Monaco, monospace;text-indent:1px;}.leaflet-touch .leaflet-control-zoom-in,.leaflet-touch .leaflet-control-zoom-out{font-size:22px;}.leaflet-control-layers{box-shadow:0 1px 5px rgba(0, 0, 0, 0.4);background:#fff;border-radius:5px;}.leaflet-control-layers-toggle{height:26px;width:26px;overflow:hidden;background:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAaCAQAAAADQ4RFAAACf0lEQVR4AY1UM3gkARTePdvdoTxXKc+qTl3aU5U6b2Kbkz3Gtq3Zw6ziLGNPzrYx7946Tr6/ee/XeCQ4D3ykPtL5tHno4n0d/h3+xfuWHGLX81cn7r0iTNzjr7LrlxCqPtkbTQEHeqOrTy4Yyt3VCi/IOB0v7rVC7q45Q3Gr5K6jt+3Gl5nCoDD4MtO+j96Wu8atmhGqcNGHObuf8OM/x3AMx38+4Z2sPqzCxRFK2aF2e5Jol56XTLyggAMTL56XOMoS1W4pOyjUcGGQdZxU6qRh7B9Zp+PfpOFlqt0zyDZckPi1ttmIp03jX8gyJ8a/PG2yutpS/Vol7peZIbZcKBAEEheEIAgFbDkz5H6Zrkm2hVWGiXKiF4Ycw0RWKdtC16Q7qe3X4iOMxruonzegJzWaXFrU9utOSsLUmrc0YjeWYjCW4PDMADElpJSSQ0vQvA1Tm6/JlKnqFs1EGyZiFCqnRZTEJJJiKRYzVYzJck2Rm6P4iH+cmSY0YzimYa8l0EtTODFWhcMIMVqdsI2uiTvKmTisIDHJ3od5GILVhBCarCfVRmo4uTjkhrhzkiBV7SsaqS+TzrzM1qpGGUFt28pIySQHR6h7F6KSwGWm97ay+Z+ZqMcEjEWebE7wxCSQwpkhJqoZA5ivCdZDjJepuJ9IQjGGUmuXJdBFUygxVqVsxFsLMbDe8ZbDYVCGKxs+W080max1hFCarCfV+C1KATwcnvE9gRRuMP2prdbWGowm1KB1y+zwMMENkM755cJ2yPDtqhTI6ED1M/82yIDtC/4j4BijjeObflpO9I9MwXTCsSX8jWAFeHr05WoLTJ5G8IQVS/7vwR6ohirYM7f6HzYpogfS3R2OAAAAAElFTkSuQmCC") -0px -0px  no-repeat;background-position:center;width:36px;height:36px;}.leaflet-retina .leaflet-control-layers-toggle{height:52px;width:52px;overflow:hidden;background:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAA0CAQAAABvcdNgAAAEsklEQVR4AWL4TydIhpZK1kpWOlg0w3ZXP6D2soBtG42jeI6ZmQTHzAxiTbSJsYLjO9HhP+WOmcuhciVnmHVQcJnp7DFvScowZorad/+V/fVzMdMT2g9Cv9guXGv/7pYOrXh2U+RRR3dSd9JRx6bIFc/ekqHI29JC6pJ5ZEh1yWkhkbcFeSjxgx3L2m1cb1C7bceyxA+CNjT/Ifff+/kDk2u/w/33/IeCMOSaWZ4glosqT3DNnNZQ7Cs58/3Ce5HL78iZH/vKVIaYlqzfdLu8Vi7dnvUbEza5Idt36tquZFldl6N5Z/POLof0XLK61mZCmJSWjVF9tEjUluu74IUXvgttuVIHE7YxSkaYhJZam7yiM9Pv82JYfl9nptxZaxMJE4YSPty+vF0+Y2up9d3wwijfjZbabqm/3bZ9ecKHsiGmRflnn1MW4pjHf9oLufyn2z3y1D6n8g8TZhxyzipLNPnAUpsOiuWimg52psrTZYnOWYNDTMuWBWa0tJb4rgq1UvmutpaYEbZlwU3CLJm/ayYjHW5/h7xWLn9Hh1vepDkyf7dE7MtT5LR4e7yYpHrkhOUpEfssBLq2pPhAqoSWKUkk7EDqkmK6RrCEzqDjhNDWNE+XSMvkJRDWlZTmCW0l0PHQGRZY5t1L83kT0Y3l2SItk5JAWHl2dCOBm+fPu3fo5/3v61RMCO9Jx2EEYYhb0rmNQMX/vm7gqOEJLcXTGw3CAuRNeyaPWwjR8PRqKQ1PDA/dpv+on9Shox52WFnx0KY8onHayrJzm87i5h9xGw/tfkev0jGsQizqezUKjk12hBMKJ4kbCqGPVNXudyyrShovGw5CgxsRICxF6aRmSjlBnHRzg7Gx8fKqEubI2rahQYdR1YgDIRQO7JvQyD52hoIQx0mxa0ODtW2Iozn1le2iIRdzwWewedyZzewidueOGqlsn1MvcnQpuVwLGG3/IR1hIKxCjelIDZ8ldqWz25jWAsnldEnK0Zxro19TGVb2ffIZEsIO89EIEDvKMPrzmBOQcKQ+rroye6NgRRxqR4U8EAkz0CL6uSGOm6KQCdWjvjRiSP1BPalCRS5iQYiEIvxuBMJEWgzSoHADcVMuN7IuqqTeyUPq22qFimFtxDyBBJEwNyt6TM88blFHao/6tWWhuuOM4SAK4EI4QmFHA+SEyWlp4EQoJ13cYGzMu7yszEIBOm2rVmHUNqwAIQabISNMRstmdhNWcFLsSm+0tjJH1MdRxO5Nx0WDMhCtgD6OKgZeljJqJKc9po8juskR9XN0Y1lZ3mWjLR9JCO1jRDMd0fpYC2VnvjBSEFg7wBENc0R9HFlb0xvF1+TBEpF68d+DHR6IOWVv2BECtxo46hOFUBd/APU57WIoEwJhIi2CdpyZX0m93BZicktMj1AS9dClteUFAUNUIEygRZCtik5zSxI9MubTBH1GOiHsiLJ3OCoSZkILa9PxiN0EbvhsAo8tdAf9Seepd36lGWHmtNANTv5Jd0z4QYyeo/UEJqxKRpg5LZx6btLPsOaEmdMyxYdlc8LMaJnikDlhclqmPiQnTEpLUIZEwkRagjYkEibQErwhkTAKCLQEbUgkzJQWc/0PstHHcfEdQ+UAAAAASUVORK5CYII=") -0px -0px  no-repeat;background-size:26px 26px;width:36px;height:36px;background-position:5px 5px;}.leaflet-touch .leaflet-control-layers-toggle{width:44px;height:44px;}.leaflet-control-layers .leaflet-control-layers-list,.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none;}.leaflet-control-layers-expanded .leaflet-control-layers-list{display:block;position:relative;}.leaflet-control-layers-expanded{padding:6px 10px 6px 6px;color:#333;background:#fff;}.leaflet-control-layers-scrollbar{overflow-y:scroll;overflow-x:hidden;padding-right:5px;}.leaflet-control-layers-selector{margin-top:2px;position:relative;top:1px;}.leaflet-control-layers label{display:block;}.leaflet-control-layers-separator{height:0;border-top:1px solid #ddd;margin:5px -10px 5px -6px;}.leaflet-default-icon-path{background-image:url(images/marker-icon.png);}.leaflet-container .leaflet-control-attribution{background:#fff;background:rgba(255, 255, 255, 0.7);margin:0;font-size:11px;}.leaflet-control-attribution,.leaflet-control-scale-line{padding:0 5px;color:#333;}.leaflet-control-attribution a{text-decoration:none;}.leaflet-control-attribution a:hover{text-decoration:underline;}.leaflet-container .leaflet-control-scale{font-size:11px;}.leaflet-left .leaflet-control-scale{margin-left:5px;}.leaflet-bottom .leaflet-control-scale{margin-bottom:5px;}.leaflet-control-scale-line{border:2px solid #777;border-top:none;line-height:1.1;padding:2px 5px 1px;font-size:11px;white-space:nowrap;overflow:hidden;-moz-box-sizing:border-box;box-sizing:border-box;background:#fff;background:rgba(255, 255, 255, 0.5);}.leaflet-control-scale-line:not(:first-child){border-top:2px solid #777;border-bottom:none;margin-top:-2px;}.leaflet-control-scale-line:not(:first-child):not(:last-child){border-bottom:2px solid #777;}.leaflet-touch .leaflet-control-attribution{box-shadow:none;}.leaflet-touch .leaflet-control-layers,.leaflet-touch .leaflet-bar{box-shadow:none;border:2px solid rgba(0, 0, 0, 0.2);background-clip:padding-box;}.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px;}.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:12px;background:white;color:#333;box-shadow:0 3px 14px rgba(0, 0, 0, 0.4);}.leaflet-popup-content{margin:13px 19px;line-height:1.4;}.leaflet-popup-content p{margin:18px 0;}.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-left:-20px;overflow:hidden;pointer-events:none;}.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;-webkit-transform:rotate(45deg);-moz-transform:rotate(45deg);-ms-transform:rotate(45deg);-o-transform:rotate(45deg);transform:rotate(45deg);background:white;color:#333;box-shadow:0 3px 14px rgba(0, 0, 0, 0.4);}.leaflet-container a.leaflet-popup-close-button{position:absolute;top:0;right:0;padding:4px 4px 0 0;border:none;text-align:center;width:18px;height:14px;font:16px/ 14px Tahoma, Verdana, sans-serif;color:#c3c3c3;text-decoration:none;font-weight:bold;background:transparent;}.leaflet-container a.leaflet-popup-close-button:hover{color:#999;}.leaflet-popup-scrolled{overflow:auto;border-bottom:1px solid #ddd;border-top:1px solid #ddd;}.leaflet-oldie .leaflet-popup-content-wrapper{zoom:1;}.leaflet-oldie .leaflet-popup-tip{width:24px;margin:0 auto;-ms-filter:"progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";}.leaflet-oldie .leaflet-popup-tip-container{margin-top:-1px;}.leaflet-oldie .leaflet-control-zoom,.leaflet-oldie .leaflet-control-layers,.leaflet-oldie .leaflet-popup-content-wrapper,.leaflet-oldie .leaflet-popup-tip{border:1px solid #999;}.leaflet-div-icon{background:#fff;border:1px solid #666;}.leaflet-tooltip{position:absolute;padding:6px;background-color:#fff;border:1px solid #fff;border-radius:3px;color:#222;white-space:nowrap;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;pointer-events:none;box-shadow:0 1px 3px rgba(0, 0, 0, 0.4);}.leaflet-tooltip.leaflet-clickable{cursor:pointer;pointer-events:auto;}.leaflet-tooltip-top:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:"";}.leaflet-tooltip-bottom:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:"";left:50%;margin-left:-6px;}.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{position:absolute;pointer-events:none;border:6px solid transparent;background:transparent;content:"";}.leaflet-tooltip-bottom{margin-top:6px;}.leaflet-tooltip-top{margin-top:-6px;}.leaflet-tooltip-top:before{left:50%;margin-left:-6px;bottom:0;margin-bottom:-12px;border-top-color:#fff;}.leaflet-tooltip-bottom:before{top:0;margin-top:-12px;margin-left:-6px;border-bottom-color:#fff;}.leaflet-tooltip-left{margin-left:-6px;}.leaflet-tooltip-right{margin-left:6px;}.leaflet-tooltip-left:before{top:50%;margin-top:-6px;right:0;margin-right:-12px;border-left-color:#fff;}.leaflet-tooltip-right:before{top:50%;margin-top:-6px;left:0;margin-left:-12px;border-right-color:#fff;}</style><title>FoundationPlus | Sportamt Basel Stadt</title><style>/*.v-app.MpRIATheme.mpriaguestui {max-width: 1000px; margin: 0 auto;}
+.MpRIATheme.v-app, .MpRIATheme.v-app-loading {font: 400 14px/1.55 'Frutiger', 'Open Sans', sans-serif !important;}
+
+input {background-color: #e8e8e8;}
+.MpRIATheme .v-textfield {background-color: #e8e8e8!important;}
+.MpRIATheme .table-component-with-add-button .v-grid-tablewrapper {background-color: #e8e8e8!important;}
+.MpRIATheme .field-container .v-checkbox {background-color: #e8e8e8!important; height: 22px!important; width: 10px!important;}
+.MpRIATheme .v-filterselect-input {background-color: #e8e8e8!important;}
+.MpRIATheme .v-filterselect-button {background-color: #e8e8e8!important;}
+.MpRIATheme .v-textarea {background-color: #e8e8e8!important;}
+
+
+
+*/
+.v-app.MpRIATheme.mpriaguestui {max-width: 1200px; margin: 0 auto;}
+
+.ResponsiveScreen {max-width: 1200px; margin: 0 auto;}
+.ScreenWide {width: 100%; float: left; vertical-align: top;}
+.ScreenNarrow {width: 50%; float: left; vertical-align: top;}
+.Screen1 {width: 1%; float: left; margin-right: 2%; vertical-align: top;}
+.Screen5 {width: 5%; float: left; margin-right: 5%; vertical-align: top;}
+.Screen10 {width: 10%; float: left; margin-right: 5%; vertical-align: top;}
+.Screen15 {width: 15%; float: left; vertical-align: top;}
+.Screen15end {width: 15%; float: left; margin-left: 5%; vertical-align: top;}
+.Screen30 {width: 30%; float: left; vertical-align: top;}
+.Screen30front {width: 30%; float: left; margin-right: 5%; vertical-align: top;}
+.Screen40 {width: 40%; float: left; vertical-align: top;}
+.Screen55 {width: 70%; float: left; vertical-align: top;}
+.Screen60 {width: 60%; float: left; vertical-align: top;}
+.Screen80 {width: 85%; float: left; vertical-align: top;}
+
+
+.goAwayBurger .v-contextmenu { display: none!important; }
+
+
+#custom-ribbon-logo {
+	/*background-image: url("static/public/header__1.jpg");*/
+	/*background: transparent url('static/public/header_SGUM_1.jpg') no-repeat 0 -85px;*/
+	background-repeat: no-repeat;
+	background-size: auto 128px;
+	height: 128px;
+	display: flex;
+	align-items: center;
+}
+#custom-ribbon-logo div {
+	color: white;
+	font-weight: bold;
+}
+#custom-ribbon-logo-overlay {
+	width: 300px;
+	height: 128px;
+	padding-left: 0 !important;
+    padding-right: 0 !important;
+	/*background: transparent url('static/public/header_SGUM_1.jpg') no-repeat 0 -85px;*/
+}
+#custom-ribbon-logo-overlay > a {
+	display: block;
+	width: 300px;
+	height: 128px;
+	opacity: 0;
+	/*background: transparent url('static/public/header_SGUM_1.jpg') no-repeat 0 -85px;*/
+}
+@media screen and (max-width: 700px) {
+	.ScreenWide {width: 100%; float: left; vertical-align: top;}
+	.ScreenNarrow {width: 100%; float: left; vertical-align: top;}
+	.Screen10 {width: 20%; float: left; margin-right: 5%; vertical-align: top;}
+	.Screen15 {width: 30%; float: left; vertical-align: top;}
+	.Screen15end {width: 30%; float: left; margin-left: 0%; vertical-align: top;}
+	.Screen30 {width: 70%; float: left; vertical-align: top;}
+	.Screen30front {width: 70%; float: left; margin-right: 0%; vertical-align: top;}
+	.Screen55 {width: 70%; float: left; vertical-align: top;}
+	.Screen80 {width: 70%; float: left; vertical-align: top;}
+	#custom-ribbon-logo {
+	/*background-image: url("static/public/header_SGUM_2.jpg");*/
+	background-repeat: no-repeat;
+	background-size: auto 128px;
+	height: 128px;
+	display: flex;
+	align-items: center;
+	}
+	#custom-ribbon-logo div {
+	color: white;
+	font-weight: bold;
+	}
+	#custom-ribbon-logo-overlay {
+		width: 300px;
+		height: 128px;
+		padding-left: 0 !important;
+		padding-right: 0 !important;
+		/*background: transparent url('static/public/header_SGUM_2.jpg') no-repeat 0 -85px;*/
+	}
+	#custom-ribbon-logo-overlay > a {
+		display: block;
+		width: 300px;
+		height: 128px;
+		opacity: 0;
+		/*background: transparent url('static/public/header_SGUM_2.jpg') no-repeat 0 -85px;*/
+	}
+}
+
+@media screen and (max-width: 400px) {
+	.ScreenWide {width: 100%; float: left; vertical-align: top;}
+	.ScreenNarrow {width: 100%; float: left; vertical-align: top;}
+	.Screen10 {width: 20%; float: left; margin-right: 80%; vertical-align: top;}
+	.Screen15 {width: 100%; float: left; vertical-align: top;}
+	.Screen15end {width: 100%; float: left; margin-left: 0%; vertical-align: top;}
+	.Screen30 {width: 100%; float: left; vertical-align: top;}
+	.Screen30front {width: 100%; float: left; margin-right: 0%; vertical-align: top;}
+	.Screen55 {width: 100%; float: left; vertical-align: top;}
+	.Screen80 {width: 100%; float: left; vertical-align: top;}
+	#custom-ribbon-logo {
+	/*background-image: url("static/public/header_SGUM_3.jpg");*/
+	background-repeat: no-repeat;
+	background-size: auto 128px;
+	height: 128px;
+	display: flex;
+	align-items: center;
+	}
+	#custom-ribbon-logo div {
+	color: white;
+	font-weight: bold;
+	}
+	#custom-ribbon-logo-overlay {
+		width: 300px;
+		height: 128px;
+		padding-left: 0 !important;
+		padding-right: 0 !important;
+		/*background: transparent url('static/public/header_SGUM_3.jpg') no-repeat 0 -85px;*/
+	}
+	#custom-ribbon-logo-overlay > a {
+		display: block;
+		width: 300px;
+		height: 128px;
+		opacity: 0;
+		/*background: transparent url('static/public/header_SGUM_3.jpg') no-repeat 0 -85px;*/
+	}
+}
+
+
+.bold-text {
+	font-weight: bold;
+}
+</style><style>.v-tree-node-caption-voc-status-candidate:not(.v-tree-node-selected) span {color: #0033B3;}.select-field .mp-select-field-combobox.voc-status-candidate [class*="input"] {color: #0033B3;}.v-filterselect-item-voc-status-candidate {color: #0033B3;}.MpRIATheme .table-component .v-grid-row > td .voc-status-candidate {color: #0033B3;}.MpRIATheme .mp-tree-component .v-treegrid-row.voc-status-candidate {color: #0033B3;}.MpRIATheme .mp-hierarchy-grid .v-grid-row .voc-status-candidate span {color: #0033B3;}.v-tree-node-caption-voc-status-refused:not(.v-tree-node-selected) span {color: #990000;}.select-field .mp-select-field-combobox.voc-status-refused [class*="input"] {color: #990000;}.v-filterselect-item-voc-status-refused {color: #990000;}.MpRIATheme .table-component .v-grid-row > td .voc-status-refused {color: #990000;}.MpRIATheme .mp-tree-component .v-treegrid-row.voc-status-refused {color: #990000;}.MpRIATheme .mp-hierarchy-grid .v-grid-row .voc-status-refused span {color: #990000;}</style></head>
+ <body scroll="auto" class="v-generated-body v-sa v-sa18 v-sa186 v-webkit v-ios v-ios18">
+  <div id="v-118" class="v-app MpRIATheme mpriaguestui mp-user-onlineUser"><div tabindex="1" class="v-ui ui-guest v-scrollable" style="width: 100%; height: 100%;"><div class="v-loading-indicator first" style="position: absolute; display: none;"></div><div class="v-verticallayout v-layout v-vertical v-widget mp-user-onlineUser v-verticallayout-mp-user-onlineUser v-has-width v-has-height" style="position: absolute; width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-card-pane v-slot-mp-application-view-container" style="height: 100%; margin-top: 0px;"><div class="v-customcomponent v-widget card-pane v-customcomponent-card-pane mp-application-view-container v-customcomponent-mp-application-view-container v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget application-view v-verticallayout-application-view v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-card-pane v-slot-module-view-placeholder" style="height: 100%; margin-top: 0px;"><div class="v-customcomponent v-widget card-pane v-customcomponent-card-pane module-view-placeholder v-customcomponent-module-view-placeholder v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-mp-side-tabbed-pane v-slot-module-view v-slot-module-Project" style="height: 100%; margin-top: 0px;"><div class="v-customcomponent v-widget mp-side-tabbed-pane v-customcomponent-mp-side-tabbed-pane module-view v-customcomponent-module-view module-Project v-customcomponent-module-Project v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-splitpanel-horizontal v-widget mp-side-tabbed-pane-outer v-splitpanel-horizontal-mp-side-tabbed-pane-outer v-has-width v-has-height" style="width: 100%; height: 100%;"><div style="position: relative; width: 100%; height: 100%;"><div class="v-splitpanel-first-container v-splitpanel-first-container-mp-side-tabbed-pane-outer v-scrollable" style="height: 100%; width: 0px;"></div><div class="v-splitpanel-hsplitter-locked v-splitpanel-hsplitter-mp-side-tabbed-pane-outer-locked" style="position: absolute; height: 100%; top: 0px; left: 0px;"><div></div></div><div class="v-splitpanel-second-container v-splitpanel-second-container-mp-side-tabbed-pane-outer v-scrollable" style="position: absolute; top: 0px; height: 100%; width: 1200px; left: 0px;"><div class="v-splitpanel-horizontal v-widget mp-side-tabbed-pane-inner v-splitpanel-horizontal-mp-side-tabbed-pane-inner v-has-width v-has-height" style="width: 100%; height: 100%;"><div style="position: relative; width: 100%; height: 100%;"><div class="v-splitpanel-first-container v-splitpanel-first-container-mp-side-tabbed-pane-inner v-scrollable" style="height: 100%; width: 1200px;"><div class="v-verticallayout v-layout v-vertical v-widget mp-center-view v-verticallayout-mp-center-view v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-card-pane v-slot-center-view-placeholder" style="height: 100%; margin-top: 0px;"><div class="v-customcomponent v-widget card-pane v-customcomponent-card-pane center-view-placeholder v-customcomponent-center-view-placeholder v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget form-view v-verticallayout-form-view mp-form-view v-verticallayout-mp-form-view v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-card-pane v-slot-form-panel-placeholder" style="height: 100%; margin-top: 0px;"><div class="v-customcomponent v-widget card-pane v-customcomponent-card-pane form-panel-placeholder v-customcomponent-form-panel-placeholder v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customlayout v-layout v-widget mp-form v-customlayout-mp-form mp-form-ProWebMaterialFrm v-customlayout-mp-form-ProWebMaterialFrm form-ProWebMaterialFrm v-customlayout-form-ProWebMaterialFrm v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+<div style="width: 100%; height: 100%" location="component"><div class="v-panel v-widget borderless v-panel-borderless v-has-width v-has-height" style="overflow: hidden; width: 100%; height: 100%; padding-top: 0px; padding-bottom: 0px;"><div class="v-panel-captionwrap" style="margin-top: 0px;"><div class="v-panel-nocaption v-panel-nocaption-borderless"><span></span></div></div><div class="v-panel-content v-panel-content-borderless v-scrollable" tabindex="-1" style="position: relative;"><div class="v-panel v-widget borderless v-panel-borderless v-has-width v-has-height" style="overflow: hidden; width: 100%; height: 100%; padding-top: 0px; padding-bottom: 0px;"><div class="v-panel-captionwrap" style="margin-top: 0px;"><div class="v-panel-nocaption v-panel-nocaption-borderless"><span></span></div></div><div class="v-panel-content v-panel-content-borderless v-scrollable" tabindex="-1" style="position: relative;"><div class="v-customlayout v-layout v-widget catalog-view v-customlayout-catalog-view catalog-view-ProWebMaterialFrm v-customlayout-catalog-view-ProWebMaterialFrm v-has-width" style="border-style: none; margin: 0px; padding: 0px; width: 100%;">
+
+
+<!-- /-----------------------------header start-----------------------------/ -->
+<div class="ResponsiveScreen">
+    <div style="width: 100%; height: 200px; float: right;" location="fa67411e-7ab1-47fd-b327-c87ed11a66c0"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProWebHeaderSportamtWca v-customlayout-ui-object-ProWebHeaderSportamtWca v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-browserframe v-widget smt-drop-target v-browserframe-smt-drop-target component v-browserframe-component v-has-width v-has-height" id="ProWebHeaderSportamtWca" style="width: 100%; height: 100%;"><iframe src="https://fpbaselstadtsportamt.zetcom.app/static/8aa9e0603a3adfdfc1c1dd1c95851bc5/Sportfonds_BS_Farbig_RGB-resized.jpg" frameborder="0" width="100%" height="100%" allowtransparency="true" name="221" scrolling="no"></iframe></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></div>
+
+    <!--<div class="ScreenWide">
+        <div id="custom-ribbon-logo-overlay" class="col-auto"><a target="_blank" href="https://sgum-ssum.ch/">https://sgum-ssum.ch/</a></div>
+    </div>-->
+</div>
+<!-- /-----------------------------header end-----------------------------/ -->
+<!-- /-----------------------------content start-----------------------------/ -->
+<div class="ResponsiveScreen">
+
+    <!-- /**************************identification header**************************/ -->
+    <!--
+    <div class="ScreenWide">
+        <div style="width: 100%; float: left;">
+            <table style="margin-top: 32px; margin-bottom: 32px; width: 100%;">
+                <tr style="margin-top: 8px;">
+                    <td style="font-size: 26px; width: 75%; vertical-align: top; font-weight: bold; float: left;" th:utext="${mp.formatLikeDisplayField(object, 'ProFormMainTitleDpl')}">[id]</td>
+                    <td style="width: 25%; vertical-align: top;"><img src="https://fpbaselstadtsportamt.zetcom.app/VAADIN/themes/MpRIATheme/layouts/_static/Logo_Biel.jpg" alt="Keine Datei Logo_Biel.jpg gefunden!"></td>
+                </tr>
+
+            </table>
+        </div>
+        -->
+
+    <!-- /**************************header information**************************/ -->
+
+    <table style="width: 100%;">
+
+        <tbody><tr>
+            <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;" location="9d53ec06-cc54-4b08-b3f7-2351bf897e08"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormMaterialDpl v-customlayout-ui-object-ProFormMaterialDpl v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget mp-zoom-support v-csslayout-mp-zoom-support component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget mp-displayField v-customcomponent-mp-displayField smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormMaterialDpl" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget displayField-wrapper v-verticallayout-displayField-wrapper v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-displayField" style="height: 100%; margin-top: 0px;"><div class="v-label v-widget displayField v-label-displayField v-has-width v-has-height" style="width: 100%; height: 100%;"><div><h1>Material</h1></div></div></div></div></div></div><div tabindex="-1" role="button" class="v-button v-widget mp-zoom-overlay-button v-button-mp-zoom-overlay-button mp-zoom-overlay-button-label v-button-mp-zoom-overlay-button-label"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+    
+       <tr>
+           <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;">Beiträge werden nur für Arbeiten und Anschaffungen bewilligt, die noch nicht umgesetzt, durchgeführt bzw. getätigt worden sind. </td>
+       </tr>        
+
+        <tr>
+            <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;">Felder, die mit * gekennzeichnet sind, sind obligatorisch.</td>
+        </tr>
+
+        <!--
+                <tr>
+                    <td class="Screen15"   style="margin-top: 32px; vertical-align: top;"   th:text="${mp.labelFromUIObject('ProFormTypeDpl')} + '*'">[rules]</td>
+                    <td class="Screen80"   style="margin-top: 32px; font-weight: bold; vertical-align: top;"      mp:uiobject="ProFormTypeDpl">[title]</td>
+                </tr>
+
+        <tr>
+            <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;"
+                mp:uiobject="ProFormGeneralHintCampDlg">[HeaderDescription]
+            </td>
+        </tr> -->
+        <!--
+        <tr>
+            <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;" mp:uiobject="ProInterimSaveDescriptionDpl">[HeaderDescription]</td>
+        </tr>
+        <tr>
+            <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;" mp:uiobject="ProBrowserInformationDpl">[HeaderDescription]</td>
+        </tr>
+    -->
+    </tbody></table>
+
+    <!-- /**************************contact information**************************/ -->
+
+    <table style="margin-top: 32px; width: 100%;">
+
+        <tbody><tr>
+            <td class="ScreenWide" style="margin-top: 32px; font-weight: bold; vertical-align: top;" location="e490937a-e13e-4cdf-91e0-bb260ac5aad6"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormTitle1Dpl v-customlayout-ui-object-ProFormTitle1Dpl v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget mp-zoom-support v-csslayout-mp-zoom-support component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget mp-displayField v-customcomponent-mp-displayField smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormTitle1Dpl" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget displayField-wrapper v-verticallayout-displayField-wrapper v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-displayField v-slot-displayField-bold" style="height: 100%; margin-top: 0px;"><div class="v-label v-widget displayField v-label-displayField displayField-bold v-label-displayField-bold v-has-width v-has-height" style="width: 100%; height: 100%;"><div><b>Gesuchsteller</b></div></div></div></div></div></div><div tabindex="-1" role="button" class="v-button v-widget mp-zoom-overlay-button v-button-mp-zoom-overlay-button mp-zoom-overlay-button-label v-button-mp-zoom-overlay-button-label"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Organisation*</td>
+            <td class="Screen80" location="797cc277-64c4-45fd-aa27-161d5bcb26c6"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormApplicantFld v-customlayout-ui-object-ProFormApplicantFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormApplicantFld v-csslayout-smt-locked-container-ui-object-ProFormApplicantFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormApplicantFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Sitz Organisation*</td>
+            <td class="Screen80" location="116f6ff7-8ced-4bef-81e6-484f7d0ab174"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormOrganisationSeatTxtFld v-customlayout-ui-object-ProFormOrganisationSeatTxtFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormOrganisationSeatTxtFld v-csslayout-smt-locked-container-ui-object-ProFormOrganisationSeatTxtFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormOrganisationSeatTxtFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen60">Angeschlossen bei Verband*</td>
+            <td class="Screen40" style="height: 150px;" location="b61fde77-9d39-4383-b5e0-a5a25b1d4e4c"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormSyndicateFol v-customlayout-ui-object-ProFormSyndicateFol v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormSyndicateFol v-csslayout-smt-locked-container-ui-object-ProFormSyndicateFol component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget table-component v-customcomponent-table-component smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormSyndicateFol" style="width: 100%; height: 100%;"><div class="v-horizontallayout v-layout v-horizontal v-widget v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-left: 36px;"><div class="v-slot v-slot-table-component-with-add-button" style="width: 100%; margin-left: -36px;"><div class="v-grid v-widget table-component-with-add-button v-grid-table-component-with-add-button v-has-width v-has-height" tabindex="0" style="height: 100%; width: 100%;"><div tabindex="-1" class="v-grid-scroller v-grid-scroller-vertical" style="display: none; visibility: hidden; padding-right: 1px; width: 0px; z-index: 90; height: 148px;"><div style="width: 1px;"></div></div><div tabindex="-1" class="v-grid-scroller v-grid-scroller-horizontal" style="visibility: hidden; padding-bottom: 1px; height: 0px; z-index: 90; left: 0px; width: 426px; overflow-x: scroll;"><div style="height: 1px; width: 430px;"></div></div><div class="v-grid-tablewrapper" style="height: 148px; width: 426px;"><table role="grid" aria-multiselectable="false"><thead role="rowgroup" class="v-grid-header"></thead><tbody role="rowgroup" class="v-grid-body" style="touch-action: auto;"></tbody><tfoot role="rowgroup" class="v-grid-footer"></tfoot></table></div><div class="v-grid-header-deco" style="width: 0px; display: none;"></div><div class="v-grid-footer-deco" style="width: 0px; display: none;"></div><div class="v-grid-horizontal-scrollbar-deco" style="height: 0px;"></div></div></div><div class="v-slot v-slot-smt-table-add-button v-slot-mp-table-component-add-button"><div tabindex="0" role="button" class="v-button v-widget smt-table-add-button v-button-smt-table-add-button mp-table-component-add-button v-button-mp-table-component-add-button v-has-height" style="height: 100%;"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div></div></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+
+        <tr>
+            <td class="Screen15">Anrede</td>
+            <td class="Screen30" location="e633d412-ab76-42d0-b7c2-f14179d9362e"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormNameTitleCbx v-customlayout-ui-object-ProFormNameTitleCbx v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormNameTitleCbx v-csslayout-smt-locked-container-ui-object-ProFormNameTitleCbx component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget select-field v-customcomponent-select-field smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormNameTitleCbx" style="width: 100%; height: 100%;"><div class="v-horizontallayout v-layout v-horizontal v-widget v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-left: 0px;"><div class="v-slot v-slot-mp-select-field-combobox" style="width: 100%; margin-left: 0px;"><div aria-haspopup="true" aria-owns="gwt-uid-2" aria-controls="gwt-uid-2" role="combobox" class="v-filterselect v-widget mp-select-field-combobox v-filterselect-mp-select-field-combobox v-has-width v-has-height" aria-expanded="false" style="width: 100%; height: 100%;"><input type="text" class="v-filterselect-input" autocomplete="0.4619205513247122" dir="" tabindex="0" style="width: 100%;"><div class="v-filterselect-button" aria-hidden="true" role="button"></div></div></div></div></div></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Vorname *</td>
+            <td class="Screen30front" location="754f8854-bb63-4180-9518-1d0cc438d394"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormForeNameFld v-customlayout-ui-object-ProFormForeNameFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormForeNameFld v-csslayout-smt-locked-container-ui-object-ProFormForeNameFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormForeNameFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            <td class="Screen15end">Nachname *</td>
+            <td class="Screen30" location="ca364e16-f307-4966-bd18-807661781580"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormSurNameFld v-customlayout-ui-object-ProFormSurNameFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormSurNameFld v-csslayout-smt-locked-container-ui-object-ProFormSurNameFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormSurNameFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Strasse</td>
+            <td class="Screen80" location="dcdff96e-1023-4ebb-a35e-70b4537f4695"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormStreetFld v-customlayout-ui-object-ProFormStreetFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormStreetFld v-csslayout-smt-locked-container-ui-object-ProFormStreetFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormStreetFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">PLZ*</td>
+            <td class="Screen30front" location="7484283c-6b61-401f-a9db-9d663b6c3073"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormPostcodeFld v-customlayout-ui-object-ProFormPostcodeFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormPostcodeFld v-csslayout-smt-locked-container-ui-object-ProFormPostcodeFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormPostcodeFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            <td class="Screen15end">Ort*</td>
+            <td class="Screen30" location="661b7ba4-018e-48a7-b7d9-ebb879efa156"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormCityFld v-customlayout-ui-object-ProFormCityFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormCityFld v-csslayout-smt-locked-container-ui-object-ProFormCityFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormCityFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Telefon tagsüber*</td>
+            <td class="Screen30front" location="22ac26de-1949-432e-abc4-e7519f3298ec"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProPhoneBusinessTxtFld v-customlayout-ui-object-ProPhoneBusinessTxtFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProPhoneBusinessTxtFld v-csslayout-smt-locked-container-ui-object-ProPhoneBusinessTxtFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProPhoneBusinessTxtFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            <td class="Screen15end">Telefon</td>
+            <td class="Screen30" location="e2402feb-e447-43c3-a71c-5ebad27f7904"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormPhonePrivateFld v-customlayout-ui-object-ProFormPhonePrivateFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormPhonePrivateFld v-csslayout-smt-locked-container-ui-object-ProFormPhonePrivateFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormPhonePrivateFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">E-Mail *</td>
+            <td class="Screen80" location="d9c00e12-4e84-4fb1-a42b-32308de97c6b"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormEmailFld v-customlayout-ui-object-ProFormEmailFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormEmailFld v-csslayout-smt-locked-container-ui-object-ProFormEmailFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormEmailFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Website</td>
+            <td class="Screen80" location="a73f8901-ca31-41cc-bb3e-1c6f84e90161"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormWebsiteFld v-customlayout-ui-object-ProFormWebsiteFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormWebsiteFld v-csslayout-smt-locked-container-ui-object-ProFormWebsiteFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" maxlength="4000" id="ProFormWebsiteFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen15">Sportart *</td>
+            <td class="Screen80" location="77878761-670b-453e-aba4-fef25107401c"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormSportCbx v-customlayout-ui-object-ProFormSportCbx v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormSportCbx v-csslayout-smt-locked-container-ui-object-ProFormSportCbx component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget select-field v-customcomponent-select-field smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormSportCbx" style="width: 100%; height: 100%;"><div class="v-horizontallayout v-layout v-horizontal v-widget v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-left: 0px;"><div class="v-slot v-slot-mp-select-field-combobox" style="width: 100%; margin-left: 0px;"><div aria-haspopup="true" aria-owns="gwt-uid-3" aria-controls="gwt-uid-3" role="combobox" class="v-filterselect v-widget mp-select-field-combobox v-filterselect-mp-select-field-combobox v-has-width v-has-height" aria-expanded="false" style="width: 100%; height: 100%;"><input type="text" class="v-filterselect-input" autocomplete="0.8433550775116162" dir="" tabindex="0" style="width: 100%;"><div class="v-filterselect-button" aria-hidden="true" role="button"></div></div></div></div></div></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+
+    </tbody></table>
+
+    <!-- /**************************Angaben Material**************************/ -->
+
+    <table style="margin-top: 32px; width: 100%;">
+
+        <tbody><tr><td class="ScreenWide" style="margin-top: 32px; font-weight: bold; vertical-align: top;">Angaben zum Gesuch
+        </td>
+
+        </tr><tr>
+            <td class="Screen15">Kurzbeschrieb*</td>
+            <td class="Screen80" style="height: 100px;" location="783b38ea-b72a-4226-bbcf-5b14c2824a65"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormDescriptionClbXpd v-customlayout-ui-object-ProFormDescriptionClbXpd v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormDescriptionClbXpd v-csslayout-smt-locked-container-ui-object-ProFormDescriptionClbXpd component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-csslayout v-layout v-widget mp-zoom-support v-csslayout-mp-zoom-support v-has-width v-has-height" style="width: 100%; height: 100%;"><textarea class="v-textarea v-widget smt-html-text-area v-textarea-smt-html-text-area smt-drop-target v-textarea-smt-drop-target v-has-width v-has-height" style="overflow-x: hidden; width: 100%; height: 100%;" rows="1" id="ProFormDescriptionClbXpd" tabindex="0"></textarea><div tabindex="-1" role="button" class="v-button v-widget mp-zoom-overlay-button v-button-mp-zoom-overlay-button mp-zoom-overlay-button-component v-button-mp-zoom-overlay-button-component"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen30">beantragter Beitrag in Schweizer Franken*</td>
+            <td class="Screen55" location="145a1b9e-e031-4e63-b184-2408e0ec8bce"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormContributionRequestedNumFld v-customlayout-ui-object-ProFormContributionRequestedNumFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormContributionRequestedNumFld v-csslayout-smt-locked-container-ui-object-ProFormContributionRequestedNumFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" placeholder="" id="ProFormContributionRequestedNumFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen30">Einnahmen</td>
+            <td class="Screen55" location="ac53e5d2-af2a-4c98-a3f0-d803c07139f5"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormExpensesFld v-customlayout-ui-object-ProFormExpensesFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormExpensesFld v-csslayout-smt-locked-container-ui-object-ProFormExpensesFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" placeholder="" id="ProFormExpensesFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+        <tr>
+            <td class="Screen30">Ausgaben</td>
+            <td class="Screen55" location="d4d80bba-c21b-40b2-b346-d6e8d0d3d45b"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormEarningsFld v-customlayout-ui-object-ProFormEarningsFld v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormEarningsFld v-csslayout-smt-locked-container-ui-object-ProFormEarningsFld component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><input type="text" class="v-textfield v-widget mp-text-field v-textfield-mp-text-field smt-drop-target v-textfield-smt-drop-target v-has-width v-has-height" placeholder="" id="ProFormEarningsFld" tabindex="0" style="width: 100%; height: 100%;"></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+        </tr>
+
+     </tbody></table>
+
+
+        <!-- /**************************attachment information**************************/ -->
+
+     <table style="margin-top: 32px; width: 100%;">
+
+            <tbody><tr>
+                <td class="ScreenWide" style="margin-top: 32px; font-weight: bold; vertical-align: top;" location="dfb213f3-76f7-45b3-ae04-3045461ca45a"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormAttachmentsTitleDpl v-customlayout-ui-object-ProFormAttachmentsTitleDpl v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget mp-zoom-support v-csslayout-mp-zoom-support component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget mp-displayField v-customcomponent-mp-displayField smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormAttachmentsTitleDpl" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget displayField-wrapper v-verticallayout-displayField-wrapper v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-displayField v-slot-displayField-bold" style="height: 100%; margin-top: 0px;"><div class="v-label v-widget displayField v-label-displayField displayField-bold v-label-displayField-bold v-has-width v-has-height" style="width: 100%; height: 100%;"><div><b>Dokumente</b></div></div></div></div></div></div><div tabindex="-1" role="button" class="v-button v-widget mp-zoom-overlay-button v-button-mp-zoom-overlay-button mp-zoom-overlay-button-label v-button-mp-zoom-overlay-button-label"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            </tr>
+
+            <tr>
+                <td class="ScreenWide" style="margin-top: 8px; font-size: 12px; vertical-align: top;" location="2557d6c3-6407-4cf7-be1b-40c4158625d4"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormAttachmentInfoDpl v-customlayout-ui-object-ProFormAttachmentInfoDpl v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget mp-zoom-support v-csslayout-mp-zoom-support component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget mp-displayField v-customcomponent-mp-displayField smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormAttachmentInfoDpl" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget displayField-wrapper v-verticallayout-displayField-wrapper v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-displayField" style="height: 100%; margin-top: 0px;"><div class="v-label v-widget displayField v-label-displayField v-has-width v-has-height" style="width: 100%; height: 100%;">Fügen Sie die gewünschten Dokumente hinzu. Falls Sie zusätzliche Dokumente anfügen möchten, klicken Sie auf +.</div></div></div></div></div><div tabindex="-1" role="button" class="v-button v-widget mp-zoom-overlay-button v-button-mp-zoom-overlay-button mp-zoom-overlay-button-label v-button-mp-zoom-overlay-button-label"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            </tr>
+            <tr>
+                <td class="Screen15">Beilagen*</td>
+                <td class="Screen80" style="height: 200px;" location="9568b1fb-6846-4c39-a98b-36266af13cc6"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormAttachmentGrpTbl v-customlayout-ui-object-ProFormAttachmentGrpTbl v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormAttachmentGrpTbl v-csslayout-smt-locked-container-ui-object-ProFormAttachmentGrpTbl component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget smt-drop-target v-customcomponent-smt-drop-target v-has-width v-has-height" id="ProFormAttachmentGrpTbl" style="width: 100%; height: 100%;"><div class="v-verticallayout v-layout v-vertical v-widget v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-top: 0px;"><div class="v-slot v-slot-card-pane" style="height: 100%; margin-top: 0px;"><div class="v-customcomponent v-widget card-pane v-customcomponent-card-pane v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-customcomponent v-widget table-component v-customcomponent-table-component table-component-has-header v-customcomponent-table-component-has-header v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-horizontallayout v-layout v-horizontal v-widget mp-table-component-with-header v-horizontallayout-mp-table-component-with-header v-has-width v-has-height" style="width: 100%; height: 100%;"><div class="v-expand" style="padding-left: 36px;"><div class="v-slot v-slot-table-component-with-add-button" style="width: 100%; margin-left: -36px;"><div class="v-grid v-widget table-component-with-add-button v-grid-table-component-with-add-button v-has-width v-has-height" tabindex="0" style="height: 100%; width: 100%;"><div tabindex="-1" class="v-grid-scroller v-grid-scroller-vertical" style="display: none; visibility: hidden; padding-right: 1px; width: 0px; z-index: 90; height: 166px; top: 32px;"><div style="width: 1px; height: 102px;"></div></div><div tabindex="-1" class="v-grid-scroller v-grid-scroller-horizontal" style="visibility: hidden; padding-bottom: 1px; height: 0px; z-index: 90; left: 0px; width: 948px; overflow-x: scroll;"><div style="height: 1px; width: 951.969px;"></div></div><div class="v-grid-tablewrapper" style="height: 198px; width: 948px;"><table role="grid" aria-multiselectable="false" aria-rowcount="4"><thead role="rowgroup" class="v-grid-header"><tr class="v-grid-row" role="row" style="width: 946.969px;"><th class="v-grid-cell column-weight-36 sortable" role="columnheader" colspan="1" style="height: 32px; width: 341.266px;" aria-sort="none"><div class="v-grid-column-header-content v-grid-column-default-header-content">Typ</div><div class="v-grid-column-resize-handle"></div></th><th class="v-grid-cell column-weight-14 sortable" role="columnheader" colspan="1" style="height: 32px; width: 132.719px;" aria-sort="none"><div class="v-grid-column-header-content v-grid-column-default-header-content">Obligatorisch</div><div class="v-grid-column-resize-handle"></div></th><th class="v-grid-cell column-weight-29" role="columnheader" colspan="1" style="height: 32px; width: 274.906px;"><div class="v-grid-column-header-content v-grid-column-default-header-content">Datei</div><div class="v-grid-column-resize-handle"></div></th><th class="v-grid-cell column-weight-21 sortable" role="columnheader" colspan="1" style="height: 32px; width: 198.078px;" aria-sort="none"><div class="v-grid-column-header-content v-grid-column-default-header-content">Anmerkung</div><div class="v-grid-column-resize-handle"></div></th></tr></thead><tbody role="rowgroup" class="v-grid-body" style="touch-action: auto; margin-top: 32px; transform: translate3d(0px, 0px, 0px);"><tr class="v-grid-row v-grid-row-focused v-grid-row-has-data" role="row" aria-selected="false" style="width: 946.969px; transform: translate3d(0px, 0px, 0px);"><td class="v-grid-cell v-grid-cell-focused column-weight-36" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 341.266px;">Budget/detaillierte Aufstellung Aufwand und Ertrag</td><td class="v-grid-cell column-weight-14" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 132.719px;">Ja</td><td class="v-grid-cell column-weight-29" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 274.906px;"></td><td class="v-grid-cell column-weight-21" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 198.078px;"><div class="mp-action-area"><div class="mp-action-area-button smt-table-edit-button" onclick="if(event.stopPropagation){event.stopPropagation();}else if(window.event){window.event.cancelBubble=true;}comzetcommpactiontablecolumn5014cae1344b40e2abb99209b7689d3a(1,0,3)"><i class="v-icon fa fa-pencil"></i></div><div class="mp-action-area-button smt-table-delete-button" onclick="if(event.stopPropagation){event.stopPropagation();}else if(window.event){window.event.cancelBubble=true;}comzetcommpactiontablecolumn5014cae1344b40e2abb99209b7689d3a(0,0,3)"><i class="v-icon fa fa-trash"></i></div></div></td></tr><tr class="v-grid-row v-grid-row-stripe v-grid-row-has-data" role="row" aria-selected="false" style="width: 946.969px; transform: translate3d(0px, 34px, 0px);"><td class="v-grid-cell column-weight-36" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 341.266px;">Offerte/n</td><td class="v-grid-cell column-weight-14" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 132.719px;">Ja</td><td class="v-grid-cell column-weight-29" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 274.906px;"></td><td class="v-grid-cell column-weight-21" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 198.078px;"><div class="mp-action-area"><div class="mp-action-area-button smt-table-edit-button" onclick="if(event.stopPropagation){event.stopPropagation();}else if(window.event){window.event.cancelBubble=true;}comzetcommpactiontablecolumn5014cae1344b40e2abb99209b7689d3a(1,1,3)"><i class="v-icon fa fa-pencil"></i></div><div class="mp-action-area-button smt-table-delete-button" onclick="if(event.stopPropagation){event.stopPropagation();}else if(window.event){window.event.cancelBubble=true;}comzetcommpactiontablecolumn5014cae1344b40e2abb99209b7689d3a(0,1,3)"><i class="v-icon fa fa-trash"></i></div></div></td></tr><tr class="v-grid-row v-grid-row-has-data" role="row" aria-selected="false" style="width: 946.969px; transform: translate3d(0px, 68px, 0px);"><td class="v-grid-cell column-weight-36" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 341.266px;">Finanzierungsnachweis</td><td class="v-grid-cell column-weight-14" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 132.719px;">Nein</td><td class="v-grid-cell column-weight-29" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 274.906px;"></td><td class="v-grid-cell column-weight-21" role="gridcell" colspan="1" aria-selected="false" style="height: 34px; width: 198.078px;"><div class="mp-action-area"><div class="mp-action-area-button smt-table-edit-button" onclick="if(event.stopPropagation){event.stopPropagation();}else if(window.event){window.event.cancelBubble=true;}comzetcommpactiontablecolumn5014cae1344b40e2abb99209b7689d3a(1,2,3)"><i class="v-icon fa fa-pencil"></i></div><div class="mp-action-area-button smt-table-delete-button" onclick="if(event.stopPropagation){event.stopPropagation();}else if(window.event){window.event.cancelBubble=true;}comzetcommpactiontablecolumn5014cae1344b40e2abb99209b7689d3a(0,2,3)"><i class="v-icon fa fa-trash"></i></div></div></td></tr></tbody><tfoot role="rowgroup" class="v-grid-footer"></tfoot></table></div><div class="v-grid-header-deco" style="width: 0px; display: none; height: 32px;"></div><div class="v-grid-footer-deco" style="width: 0px; display: none;"></div><div class="v-grid-horizontal-scrollbar-deco" style="height: 0px;"></div><div class="v-grid-sidebar closed v-contextmenu"><button type="button" class="v-grid-sidebar-button" style="height: 20px;"></button></div></div></div><div class="v-slot v-slot-smt-table-add-button v-slot-mp-table-component-add-button"><div tabindex="0" role="button" class="v-button v-widget smt-table-add-button v-button-smt-table-add-button mp-table-component-add-button v-button-mp-table-component-add-button v-has-height" style="height: 100%;"><span class="v-button-wrap"><span class="v-icon FontAwesomeLabelAddon"></span><span class="v-button-caption"></span></span></div></div></div></div></div></div></div></div></div></div></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            </tr>
+
+      </tbody></table>
+
+        <!-- /**************************acknowledgement**************************/ -->
+
+        <table style="margin-top: 32px; width: 100%;">
+
+            <tbody><tr>
+                <td class="Screen80" style="margin-left: 32px;">
+                    <p>Ich habe die
+                <a href="http://www.bs.ch/media/7196" target="_blank" rel="noopener; nofollow">Wegleitung</a>
+            gelesen und verstanden *</p>
+                </td>
+                <td class="Screen1" location="d606d287-7cd0-473d-8c7b-56887a01b869"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormAcceptTermsBooChb v-customlayout-ui-object-ProFormAcceptTermsBooChb v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormAcceptTermsBooChb v-csslayout-smt-locked-container-ui-object-ProFormAcceptTermsBooChb component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><span class="v-checkbox v-widget mp-checkbox v-checkbox-mp-checkbox smt-drop-target v-checkbox-smt-drop-target v-has-width v-has-height" style="visibility: visible; width: 100%; height: 100%;" id="ProFormAcceptTermsBooChb"><input type="checkbox" value="on" id="gwt-uid-5" tabindex="0"><label for="gwt-uid-5"></label></span></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            </tr>
+
+            <tr>
+                <td class="Screen80" style="margin-left: 32px;">Hiermit bestätige ich die Richtigkeit und Vollständigkeit der gemachten Angaben *</td>
+                <td class="Screen1" location="841d8da3-8d4a-4c3b-987f-3110856c0e73"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormCorrectInfoBooChb v-customlayout-ui-object-ProFormCorrectInfoBooChb v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div class="v-csslayout v-layout v-widget locked-container v-csslayout-locked-container smt-locked-container-ui-object-ProFormCorrectInfoBooChb v-csslayout-smt-locked-container-ui-object-ProFormCorrectInfoBooChb component v-csslayout-component v-has-width v-has-height" style="width: 100%; height: 100%;"><span class="v-checkbox v-widget mp-checkbox v-checkbox-mp-checkbox smt-drop-target v-checkbox-smt-drop-target v-has-width v-has-height" style="visibility: visible; width: 100%; height: 100%;" id="ProFormCorrectInfoBooChb"><input type="checkbox" value="on" id="gwt-uid-4" tabindex="0"><label for="gwt-uid-4"></label></span></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            </tr>
+
+        </tbody></table>
+
+        <!-- /**************************send it**************************/ -->
+
+        <table style="margin-top: 32px; float: right;">
+            <tbody><tr>
+                <td style="width: 30%;" location="10a67376-1111-4f2e-9242-28c1d6cd1556"><div class="v-customlayout v-layout v-widget field-container v-customlayout-field-container mp-ui-object v-customlayout-mp-ui-object ui-object-ProFormProjectSendBut v-customlayout-ui-object-ProFormProjectSendBut v-has-width v-has-height" style="border-style: none; margin: 0px; padding: 0px; width: 100%; height: 100%;">
+    <div class="mp-field mp-flex-row">
+        <div location="caption"></div>
+        <div class="mp-flex-space-fill" location="component"><div tabindex="0" role="button" class="v-button v-widget button v-button-button mp-event-button v-button-mp-event-button smt-drop-target v-button-smt-drop-target component v-button-component v-has-width v-has-height" id="ProFormProjectSendBut" style="width: 100%; height: 100%;"><span class="v-button-wrap"><span class="v-button-caption">Senden</span></span></div></div>
+    </div>
+    <div location="inspector"></div>
+</div></td>
+            </tr>
+        </tbody></table>
+
+    
+</div>
+<!-- /-----------------------------content end-----------------------------/ -->
+</div></div><div class="v-panel-deco v-panel-deco-borderless" style="margin-bottom: 0px;"></div></div></div><div class="v-panel-deco v-panel-deco-borderless" style="margin-bottom: 0px;"></div></div></div>
+<div location="inspector"></div>
+</div></div></div></div></div></div></div></div></div></div><div class="v-splitpanel-hsplitter-locked v-splitpanel-hsplitter-mp-side-tabbed-pane-inner-locked" style="position: absolute; height: 100%; top: 0px; right: 0px;"><div></div></div><div class="v-splitpanel-second-container v-splitpanel-second-container-mp-side-tabbed-pane-inner v-scrollable" style="position: absolute; top: 0px; height: 100%; width: 0px; left: 1200px;"></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div><div class="v-slot v-slot-download-support"><div tabindex="-1" role="button" class="v-button v-disabled v-widget download-support v-button-download-support v-has-width v-has-height" aria-disabled="true" style="width: 0px; height: 0px;"><span class="v-button-wrap"><span class="v-button-caption"></span></span></div></div><div class="v-slot v-slot-upload-support"><form enctype="multipart/form-data" method="post" class="v-upload v-widget upload-support v-upload-upload-support v-has-width v-has-height v-upload-immediate" id="7utb0h-tS5y8ytT8l_LnNA" action="https://fpbaselstadtsportamt.zetcom.app/v/APP/UPLOAD/0/318/action/49bd9b15-114b-4743-aeb1-b0becbe735e5" target="318_TGT_FRAME" style="width: 0px; height: 0px;"><div><input type="hidden"><input type="file" class="gwt-FileUpload" accept="null" name="318_file"><div tabindex="0" role="button" class="v-button"><span class="v-button-wrap"><span class="v-button-caption">Datei wählen...</span></span></div></div></form></div></div></div></div></div>
+  <script type="text/javascript" src="./../VAADIN/vaadinPush.js?v=8.30.0"></script>
+  <script type="text/javascript" src="./../VAADIN/vaadinBootstrap.js?v=8.30.0"></script>
+  <script type="text/javascript">//<![CDATA[
+if (!window.vaadin) alert("Failed to load the bootstrap javascript: ./../VAADIN/vaadinBootstrap.js?v=8.30.0");
+vaadin.initApplication("v-118",{"theme":"MpRIATheme","versionInfo":{"vaadinVersion":"8.30.0","atmosphereVersion":"2.4.30.vaadin9"},"widgetset":"com.zetcom.mp.application.view.vaadin.MpRIAWidgetset","widgetsetReady":true,"comErrMsg":{"caption":"Communication problem","message":"Take note of any unsaved data, and <u>click here</u> or press ESC to continue.","url":null},"authErrMsg":{"caption":"Authentication problem","message":"Take note of any unsaved data, and <u>click here</u> or press ESC to continue.","url":null},"sessExpMsg":{"caption":"Session Expired","message":"Take note of any unsaved data, and <u>click here</u> or press ESC key to continue.","url":null},"contextRootUrl":"./../","vaadinDir":"./../VAADIN/","frontendUrl":"vaadin://frontend/es6/","standalone":true,"heartbeatInterval":60,"serviceUrl":"."});
+//]]></script>
+ 
+<iframe id="com.zetcom.mp.application.view.vaadin.MpRIAWidgetset" tabindex="-1" style="position: absolute; width: 0px; height: 0px; border: none; left: -1000px; top: -1000px;"></iframe><div id="v-118-overlays" class="v-app MpRIATheme mpriaguestui v-overlay-container mp-user-onlineUser" aria-live="assertive" aria-label="This content is announced automatically and does not need to be navigated into." aria-relevant="additions"><div class="v-tooltip" role="tooltip" aria-live="assertive" aria-relevant="additions" style="margin-left: 0px; margin-top: 0px; left: -4990px; top: -4990px; z-index: 20001; visibility: visible; position: absolute; overflow: visible;"><div class="popupContent"><div><div class="v-errormessage" aria-hidden="true" style="display: none;"></div><div class="v-tooltip-text"><pre class="v-tooltip-pre"> </pre></div></div></div></div></div><iframe src="javascript:''" name="318_TGT_FRAME" style="position:absolute;width:0;height:0;border:0"></iframe></body></html>

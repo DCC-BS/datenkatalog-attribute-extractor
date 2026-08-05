@@ -52,6 +52,7 @@ class Container(containers.DeclarativeContainer):
         FirecrawlClient,
         scrape_url=config.provided.firecrawl_scrape_url,
         timeout_seconds=config.provided.firecrawl_timeout,
+        wait_ms=config.provided.firecrawl_wait_ms,
     )
 
     web_field_agent: providers.Singleton[WebFieldExtractionAgent] = providers.Singleton(

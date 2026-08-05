@@ -4,6 +4,12 @@ These run against saved HTML, so they are deterministic and need neither network
 running Firecrawl. `anmeldung_form.html` is a purpose-built German questionnaire covering the
 structures that matter; `w3schools_forms.html` is a real 420 KB page captured from the live
 scraper, kept to prove the reduction holds on genuine markup.
+
+`zetcom_vaadin_form.html` is the grant application at `fpbaselstadtsportamt.zetcom.app`,
+captured with the render wait that makes it non-empty. It is the opposite kind of page: a
+generated DOM with no `<label>`, no `name`, no heading tag and no `<form>` around any field,
+where every association has to be read off the layout. It reduced to twenty unlabelled
+controls and the model reported one field, which is what these tests exist to catch.
 """
 
 from pathlib import Path
@@ -13,6 +19,7 @@ import pytest
 from datenkatalog_attribute_extractor.services.web.html_controls import (
     FormControl,
     extract_controls,
+    form_marker_is_informative,
     render_listing,
 )
 
@@ -23,6 +30,12 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 def anmeldung() -> list[FormControl]:
     """Controls of the German questionnaire fixture."""
     return extract_controls((FIXTURES / "anmeldung_form.html").read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def vaadin() -> list[FormControl]:
+    """Controls of the generated-DOM fixture, which states no associations at all."""
+    return extract_controls((FIXTURES / "zetcom_vaadin_form.html").read_text(encoding="utf-8"))
 
 
 def labels(controls: list[FormControl]) -> list[str]:
@@ -149,6 +162,66 @@ def test_a_real_scraped_page_reduces_by_orders_of_magnitude() -> None:
     assert len(html) > 400_000
     assert len(listing) < 5_000
     assert len(html) / len(listing) > 50
+
+
+def test_a_neighbouring_caption_labels_a_control_the_markup_says_nothing_about(vaadin) -> None:
+    """Vaadin puts the caption in the table cell beside the control and nowhere else."""
+    found = labels(vaadin)
+
+    assert "Organisation*" in found
+    assert "Telefon tagsüber*" in found
+    assert "beantragter Beitrag in Schweizer Franken*" in found
+
+
+def test_every_control_on_a_generated_page_gets_a_label(vaadin) -> None:
+    """The failure this fixture records: 20 of 21 controls came back unlabelled."""
+    assert vaadin
+    assert all(control.label for control in vaadin)
+
+
+def test_a_caption_that_follows_its_control_is_found(vaadin) -> None:
+    """A tick box is captioned after the box, not before it, and its `<label>` here is empty."""
+    assert "Ich habe die Wegleitung gelesen und verstanden *" in labels(vaadin)
+
+
+def test_a_neighbouring_label_never_displaces_one_the_markup_states(anmeldung) -> None:
+    """Proximity is a fallback. A page that says what labels what is still believed."""
+    assert find(anmeldung, "schueler_familienname").label == "Familienname:"
+    assert find(anmeldung, "groesse").label == "Grösse (in cm)"
+    assert find(anmeldung, "site_search").label == "Website durchsuchen"
+
+
+def test_bold_section_titles_become_context(vaadin) -> None:
+    """The sections are a `<b>` and a bold-styled cell; neither is a heading tag."""
+    sections = {control.context_path[-1] for control in vaadin}
+
+    assert sections == {"Gesuchsteller", "Angaben zum Gesuch", "Dokumente"}
+
+
+def test_icon_glyphs_are_not_labels(vaadin) -> None:
+    """Font Awesome draws from the private use area, which reads as text and is not."""
+    for control in vaadin:
+        assert not any("\ue000" <= character <= "\uf8ff" for character in control.label)
+
+
+def test_the_form_marker_is_dropped_where_it_would_condemn_the_whole_form(vaadin) -> None:
+    """One `<form>` around the upload widget, every real field outside it."""
+    assert form_marker_is_informative(vaadin) is False
+    assert "ausserhalb" not in render_listing(vaadin)
+
+
+def test_the_form_marker_survives_where_it_discriminates(anmeldung) -> None:
+    assert form_marker_is_informative(anmeldung) is True
+    assert "[ausserhalb eines <form>]" in render_listing(anmeldung)
+
+
+def test_a_generated_page_reduces_to_a_listing_the_model_can_read(vaadin) -> None:
+    html = (FIXTURES / "zetcom_vaadin_form.html").read_text(encoding="utf-8")
+
+    listing = render_listing(vaadin, title="FoundationPlus | Sportamt Basel Stadt")
+
+    assert len(html) / len(listing) > 50
+    assert "(ohne Beschriftung)" not in listing
 
 
 def test_a_real_scraped_page_still_finds_its_form_fields() -> None:
