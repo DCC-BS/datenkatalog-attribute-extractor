@@ -65,12 +65,12 @@ docker-up: ## Start the full dev stack (vLLM, API, UI)
 	@docker compose -f docker-compose.dev.yml up -d
 
 .PHONY: docker-up-web
-docker-up-web: ## Start the dev stack plus Firecrawl (needed for URL extraction)
+docker-up-web: ## Start the dev stack plus the browser service (needed for URL extraction)
 	@echo "🐳 Starting docker compose with the web profile"
 	@docker compose -f docker-compose.dev.yml --profile web up -d
 
 .PHONY: docker-down
-docker-down: ## Stop the dev stack, including Firecrawl if it is running
+docker-down: ## Stop the dev stack, including the browser service if it is running
 	@echo "🐳 Stopping docker compose"
 	@docker compose -f docker-compose.dev.yml --profile web down
 

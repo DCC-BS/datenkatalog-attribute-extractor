@@ -1,0 +1,210 @@
+{
+ "title": "Anmeldung Gymnasium",
+ "text": "Anmeldung Gymnasium\nAngaben zur Schülerin / zum Schüler\nFamilienname:  Vorname:  AHV-Nummer:  Grösse (in cm) \nGesetzliche Vertreter\nVater\nFamilienname:  Beruf: \nMutter\nFamilienname:  Beruf: \nWeitere Angaben\nErziehungs- und Korrespondenzberechtigt\n beide Eltern  nur Mutter  nur Vater  andere\nIch möchte in folgendes Schuljahr eintreten \n2026/27\n2027/28\n Bemerkungen:   Ich akzeptiere die Bedingungen ",
+ "controls": [
+  {
+   "kind": "search",
+   "label": "Website durchsuchen",
+   "label_source": "markup",
+   "context_path": [],
+   "name": "site_search",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Familienname:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Angaben zur Schülerin / zum Schüler"
+   ],
+   "name": "schueler_familienname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Vorname:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Angaben zur Schülerin / zum Schüler"
+   ],
+   "name": "schueler_vorname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "AHV-Nummer:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Angaben zur Schülerin / zum Schüler"
+   ],
+   "name": "schueler_ahv",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "number",
+   "label": "Grösse (in cm)",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Angaben zur Schülerin / zum Schüler"
+   ],
+   "name": "groesse",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Familienname:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Gesetzliche Vertreter"
+   ],
+   "name": "vater_familienname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Beruf:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Gesetzliche Vertreter"
+   ],
+   "name": "vater_beruf",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Familienname:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Gesetzliche Vertreter"
+   ],
+   "name": "mutter_familienname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Beruf:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Gesetzliche Vertreter"
+   ],
+   "name": "mutter_beruf",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "radio",
+   "label": "beide Eltern",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "berechtigt",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "radio",
+   "label": "nur Mutter",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "berechtigt",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "radio",
+   "label": "nur Vater",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "berechtigt",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "radio",
+   "label": "andere",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "berechtigt",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "auswahlliste",
+   "label": "Ich möchte in folgendes Schuljahr eintreten",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "schuljahr",
+   "options": [
+    "2026/27",
+    "2027/28"
+   ],
+   "in_form": true
+  },
+  {
+   "kind": "textfeld mehrzeilig",
+   "label": "Bemerkungen:",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "bemerkungen",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "checkbox",
+   "label": "Ich akzeptiere die Bedingungen",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "agb",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "email",
+   "label": "Newsletter abonnieren",
+   "label_source": "markup",
+   "context_path": [
+    "Anmeldung Gymnasium",
+    "Weitere Angaben"
+   ],
+   "name": "newsletter",
+   "options": [],
+   "in_form": false
+  }
+ ]
+}

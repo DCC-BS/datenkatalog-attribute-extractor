@@ -76,10 +76,11 @@ services:
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-25}
       - CLIENT_URL=${CLIENT_URL:-http://localhost:8501}
       # Reachable by service name on the compose network when the `web` profile is up. In
-      # production this points at the cluster's Firecrawl instead, and no local containers run.
-      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3002}
-      - FIRECRAWL_TIMEOUT=${FIRECRAWL_TIMEOUT:-120}
-      - FIRECRAWL_WAIT_MS=${FIRECRAWL_WAIT_MS:-8000}
+      # production this points at the cluster's browser deployment instead.
+      - BROWSER_API_URL=${BROWSER_API_URL:-http://browser:3100}
+      - BROWSER_TIMEOUT=${BROWSER_TIMEOUT:-120}
+      - BROWSER_WAIT_MS=${BROWSER_WAIT_MS:-8000}
+      - WEB_MIN_LABELLED_SHARE=${WEB_MIN_LABELLED_SHARE:-0.5}
     depends_on:
       - llm
 
@@ -103,3 +104,23 @@ services:
       - /app/src/datenkatalog_attribute_extractor/ui/streamlit_app.py
     depends_on:
       - app-backend
+
+  # Chromium plus a hundred lines of Playwright, in place of Firecrawl's five containers. It
+  # exists because reading a form needs the rendered page: the geometry that says which text
+  # labels which control, and a screenshot for the pages where that fails.
+  browser:
+    build:
+      context: ./browser
+    environment:
+      VIEWPORT_WIDTH: ${BROWSER_VIEWPORT_WIDTH:-1280}
+      VIEWPORT_HEIGHT: ${BROWSER_VIEWPORT_HEIGHT:-1024}
+    # Chromium needs more than the default 64 MB of shared memory to render a large page.
+    shm_size: 1gb
+    cpus: 2.0
+    mem_limit: 4G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"

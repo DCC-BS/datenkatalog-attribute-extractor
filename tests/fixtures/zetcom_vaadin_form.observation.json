@@ -1,0 +1,274 @@
+{
+ "title": "FoundationPlus | Sportamt Basel Stadt",
+ "text": "Material\n\n\n\nBeiträge werden nur für Arbeiten und Anschaffungen bewilligt, die noch nicht umgesetzt, durchgeführt bzw. getätigt worden sind.\n\n\nFelder, die mit * gekennzeichnet sind, sind obligatorisch.\nGesuchsteller\n\n\n\nOrganisation*\n\n\nSitz Organisation*\n\n\nAngeschlossen bei Verband*\n\n\n\nAnrede\n\n\nVorname *\nNachname *\n\n\nStrasse\n\n\nPLZ*\nOrt*\n\n\nTelefon tagsüber*\nTelefon\n\n\nE-Mail *\n\n\nWebsite\n\n\nSportart *\nAngaben zum Gesuch\n\n\nKurzbeschrieb*\n\n\n\nbeantragter Beitrag in Schweizer Franken*\n\n\nEinnahmen\n\n\nAusgaben\nDokumente\n\n\n\nFügen Sie die gewünschten Dokumente hinzu. Falls Sie zusätzliche Dokumente anfügen möchten, klicken Sie auf +.\n\n\n\nBeilagen*\nTyp\nObligatorisch\nDatei\nAnmerkung\nBudget/detaillierte Aufstellung Aufwand und Ertrag\nJa\nOfferte/n\nJa\nFinanzierungsnachweis\nNein\n\n\nIch habe die Wegleitung gelesen und verstanden *\n\n\n\nHiermit bestätige ich die Richtigkeit und Vollständigkeit der gemachten Angaben *\nSenden\n ",
+ "controls": [
+  {
+   "kind": "text",
+   "label": "Organisation*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Sitz Organisation*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Anrede",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Vorname *",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Nachname *",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Strasse",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "PLZ*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Ort*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Telefon tagsüber*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Telefon",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "E-Mail *",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Website",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Sportart *",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "textfeld mehrzeilig",
+   "label": "Kurzbeschrieb*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Angaben zum Gesuch"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "beantragter Beitrag in Schweizer Franken*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Angaben zum Gesuch"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Einnahmen",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Angaben zum Gesuch"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "Ausgaben",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Angaben zum Gesuch"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "checkbox",
+   "label": "Ich habe die Wegleitung gelesen und verstanden *",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Dokumente"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "checkbox",
+   "label": "Hiermit bestätige ich die Richtigkeit und Vollständigkeit der gemachten Angaben *",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Dokumente"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "file",
+   "label": "",
+   "label_source": "",
+   "context_path": [
+    "Material",
+    "Angaben zum Gesuch"
+   ],
+   "name": "318_file",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "tabelle",
+   "label": "Angeschlossen bei Verband*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Gesuchsteller"
+   ],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "tabelle",
+   "label": "Beilagen*",
+   "label_source": "layout",
+   "context_path": [
+    "Material",
+    "Dokumente"
+   ],
+   "name": "",
+   "options": [
+    "Budget/detaillierte Aufstellung Aufwand und Ertrag",
+    "Offerte/n",
+    "Finanzierungsnachweis"
+   ],
+   "in_form": false
+  }
+ ]
+}

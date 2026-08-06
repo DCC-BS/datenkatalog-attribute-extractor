@@ -7,10 +7,12 @@ downloaded as CSV.
 The layout puts input and status in the sidebar and gives the whole main area to the work.
 Two views share the same editable table:
 
-* *Vergleich mit PDF* — the rendered page beside the fields found on that page.
+* *Vergleich mit Quelle* — the page beside the fields found on it: the rendered PDF page, or,
+  for a web form read from screenshots, the screen the model was shown.
 * *Alle Felder* — the whole document in one table, with the CSV export.
 """
 
+import base64
 import os
 import re
 from pathlib import Path
@@ -96,18 +98,24 @@ def run_upload_extraction(filename: str, content: bytes, media_type: str) -> dic
     )
 
 
-def run_url_extraction(url: str) -> dict[str, Any] | None:
+def run_url_extraction(url: str, *, force_screenshots: bool = False) -> dict[str, Any] | None:
     """Send a URL to the API and report progress.
 
     Args:
         url: Address of the online form.
+        force_screenshots: Read the page from screenshots instead of from its controls.
 
     Returns:
         The extraction result, or `None` if the run failed.
     """
-    # "Teil" rather than "Seite": a web page is split by section to fit the model's context,
-    # so the unit here is a part of one page, not a page of a document.
-    return _stream_extraction(endpoint=URL_STREAM_ENDPOINT, unit="Teil", json={"url": url})
+    # "Teil" rather than "Seite": a web page is split to fit the model — by section when it is
+    # read from its controls, by screen when it is read from screenshots — so the unit here is
+    # a part of one page, not a page of a document.
+    return _stream_extraction(
+        endpoint=URL_STREAM_ENDPOINT,
+        unit="Teil",
+        json={"url": url, "force_screenshots": force_screenshots},
+    )
 
 
 def _stream_extraction(
@@ -201,6 +209,17 @@ def _render_url_input() -> None:
         "Es wird nur diese eine Seite gelesen. Mehrstufige Formulare werden erkannt, "
         "die weiteren Schritte aber nicht abgerufen."
     )
+    force_screenshots = st.sidebar.toggle(
+        "Als Bild auslesen",
+        key="force_screenshots",
+        help=(
+            "Normalerweise werden die Felder aus der gerenderten Seite selbst gelesen; nur wenn "
+            "das zu wenig ergibt, wertet das Modell Bildschirmfotos aus. Diese Option erzwingt "
+            "die Bildauswertung — sinnvoll, wenn die gefundenen Beschriftungen nicht zum "
+            "Formular passen. Die Seite wird dabei in bildschirmgrosse Ausschnitte zerlegt, "
+            "einer pro Aufruf, was länger dauert."
+        ),
+    )
     start = st.sidebar.button(
         "Felder extrahieren",
         type="primary",
@@ -213,7 +232,7 @@ def _render_url_input() -> None:
         return
 
     with st.sidebar:
-        result = run_url_extraction(url.strip())
+        result = run_url_extraction(url.strip(), force_screenshots=force_screenshots)
     if result is not None:
         _store_result(result, source_name=url.strip(), pdf_bytes=None)
 
@@ -307,13 +326,28 @@ def select_page(pages: list[int], *, unit: str = "Seite") -> int:
     )
 
 
-def _render_web_source() -> None:
+def _page_images(result: dict[str, Any]) -> dict[int, bytes]:
+    """The screenshot of each unit, by unit number, for a run that read pictures.
+
+    A run read from the page's controls carries none, so this is also what says which of the
+    two readings produced the result.
+    """
+    return {
+        entry["page"]: base64.b64decode(entry["image_base64"])
+        for entry in result.get("page_images", [])
+        if entry.get("image_base64")
+    }
+
+
+def _render_web_source(result: dict[str, Any], page: int) -> None:
     """Show what the model was given for a web form.
 
-    Self-hosted Firecrawl cannot produce screenshots, so there is no picture of the page to
-    put here. What is shown instead is arguably more useful for review: a link to the live
-    form, and the fields as they were read out of its markup — what the model actually saw,
-    rather than what a person would have seen.
+    A page read from screenshots is shown as those screenshots: the tile the fields beside it
+    came from. Reopening the live form would show a *new* render, which is not the one that
+    was read — the point of the comparison is what the model actually saw.
+
+    A page read from its controls has no picture, so the structure that was read is listed
+    instead, and the live form is one click away.
     """
     url = st.session_state.get(SOURCE_KEY, "")
     frame: pd.DataFrame = st.session_state[FIELDS_KEY]
@@ -322,7 +356,17 @@ def _render_web_source() -> None:
     st.caption(url)
     st.divider()
 
-    st.caption("Struktur, wie sie aus dem HTML gelesen wurde:")
+    images = _page_images(result)
+    if images:
+        image = images.get(page)
+        if image is None:
+            st.info("Für diesen Teil konnte keine Vorschau erzeugt werden.")
+        else:
+            st.caption(f"Bildschirmausschnitt {page}, so wie er ausgewertet wurde:")
+            st.image(image, width="stretch")
+        return
+
+    st.caption("Struktur, wie sie aus der gerenderten Seite gelesen wurde:")
     for context, group in frame.groupby("context", sort=False):
         st.markdown(f"**{context or 'Ohne Abschnitt'}**")
         for label in group["label"]:
@@ -341,7 +385,7 @@ def render_comparison(result: dict[str, Any]) -> None:
 
     with document:
         if is_web:
-            _render_web_source()
+            _render_web_source(result, page)
         else:
             previews = cached_previews(st.session_state[PDF_KEY])
             if 1 <= page <= len(previews):

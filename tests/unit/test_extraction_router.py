@@ -21,8 +21,8 @@ from datenkatalog_attribute_extractor.routers.extraction import create_router, r
 from datenkatalog_attribute_extractor.services.extraction_service import ExtractionService
 from datenkatalog_attribute_extractor.services.extractors.protocol import ExtractorRegistry
 from datenkatalog_attribute_extractor.services.llm_health import LlmUnavailableError
-from datenkatalog_attribute_extractor.services.web.firecrawl_client import (
-    FirecrawlUnavailableError,
+from datenkatalog_attribute_extractor.services.web.browser_client import (
+    BrowserUnavailableError,
     PageUnreadableError,
 )
 from datenkatalog_attribute_extractor.services.web.url_policy import UnsafeUrlError
@@ -204,11 +204,14 @@ class StubWebExtractor:
     def __init__(self, pages: list[PageResult] | None = None, error: Exception | None = None) -> None:
         self._pages = pages if pages is not None else PAGES
         self._error = error
+        self.sources: list[UrlSource] = []
 
     def supports(self, source: ExtractionSource) -> bool:
         return isinstance(source, UrlSource)
 
     async def extract(self, source: ExtractionSource) -> AsyncIterator[PageResult]:
+        assert isinstance(source, UrlSource)
+        self.sources.append(source)
         if self._error is not None:
             raise self._error
         for page in self._pages:
@@ -229,6 +232,25 @@ def test_extract_from_url_returns_uniquely_named_fields() -> None:
     assert body["source_name"] == FORM_URL
     names = [field["name"] for field in body["fields"]]
     assert len(names) == len(set(names))
+
+
+def test_extract_from_url_passes_the_screenshot_request_through() -> None:
+    """The reviewer's override has to survive the whole way to the extractor."""
+    extractor = StubWebExtractor()
+    client = build_client(extractor=extractor)
+
+    client.post("/extraction/form-fields/url", json={"url": FORM_URL, "force_screenshots": True})
+
+    assert [source.force_screenshots for source in extractor.sources] == [True]
+
+
+def test_extract_from_url_reads_the_controls_by_default() -> None:
+    extractor = StubWebExtractor()
+    client = build_client(extractor=extractor)
+
+    client.post("/extraction/form-fields/url", json={"url": FORM_URL})
+
+    assert [source.force_screenshots for source in extractor.sources] == [False]
 
 
 def test_extract_from_url_rejects_a_malformed_url() -> None:
@@ -258,8 +280,8 @@ def test_extract_from_url_reports_an_unreadable_page_as_a_client_error() -> None
     assert response.status_code == 400
 
 
-def test_extract_from_url_reports_firecrawl_being_down_as_unavailable() -> None:
-    error = FirecrawlUnavailableError("http://fc:3002/v2/scrape", "ConnectTimeout")
+def test_extract_from_url_reports_the_browser_being_down_as_unavailable() -> None:
+    error = BrowserUnavailableError("http://browser:3100/observe", "ConnectTimeout")
     client = build_client(extractor=StubWebExtractor(error=error))
 
     response = client.post("/extraction/form-fields/url", json={"url": FORM_URL})
@@ -281,7 +303,7 @@ def test_streaming_from_url_emits_progress_then_a_result() -> None:
 
 def test_streaming_from_url_reports_a_mid_stream_failure_as_an_error_event() -> None:
     """The HTTP status is already sent by then, so the failure has to travel in the stream."""
-    error = FirecrawlUnavailableError("http://fc:3002/v2/scrape", "ConnectTimeout")
+    error = BrowserUnavailableError("http://browser:3100/observe", "ConnectTimeout")
     client = build_client(extractor=StubWebExtractor(error=error))
 
     with client.stream("POST", "/extraction/form-fields/url/stream", json={"url": FORM_URL}) as response:

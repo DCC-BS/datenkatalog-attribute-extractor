@@ -12,7 +12,7 @@ make test-integration   # needs .env + a live vLLM; excluded from CI
 make dev                # API on :8000
 make dev-ui             # Streamlit UI on :8501
 make docker-up          # full stack (vLLM + API + UI) via docker-compose.dev.yml
-make docker-up-web      # the same plus Firecrawl (5 containers, `web` compose profile)
+make docker-up-web      # the same plus the browser service (`web` compose profile)
 make eval               # extraction quality against evals/cases; needs a live LLM
 make bootstrap-case PDF=data/x.pdf   # seed an eval case skeleton from AcroForm widgets
 make env-example        # regenerate .env.example from AppConfig
@@ -34,8 +34,15 @@ Two pipelines converging on one naming pass:
 
 - **PDF** → `pypdfium2` renders one PNG per page → vision LLM (Gemma 4 on vLLM) → labels +
   enclosing headings.
-- **URL** → Firecrawl scrapes `rawHtml` → `services/web/html_controls.py` reduces the DOM to
-  one line per control → text LLM → labels + enclosing headings.
+- **URL** → our own browser (`docker/browser`) renders the page → `observe.js` reports one line
+  per control with the caption and heading chain measured off the rendered layout → text LLM.
+  The same render is photographed in viewport-sized tiles (80 px overlap, capped at
+  `MAX_WEB_UNITS`, one call per tile); when the observation is mostly unlabelled — below
+  `WEB_MIN_LABELLED_SHARE` — those tiles go to the *vision* agent instead, the same one the PDF
+  path uses. `UrlSource.force_screenshots` (UI toggle, `force_screenshots` on the URL
+  endpoints) demands that reading outright. A tile that was read comes back with the fields
+  (`PageResult.image` → `ExtractionResponse.page_images`, base64 PNG) and is what the UI shows
+  beside them: the live page reopened is a *fresh* render, not the one the model was given.
 
 Both then go through `services/naming.py`, which assigns document-wide unique names.
 
@@ -71,12 +78,14 @@ built from the *label*, never by un-slugging `name`: `AHV-Nummer` must not come 
 - `services/llm_health.py` — `is_fatal_llm_error()` splits failures into fatal and page-local.
   `served_context_tokens` exposes the provider's `max_model_len` so prompts can be sized to
   the context actually being served.
-- `services/web/` — `url_policy.py` (SSRF guard), `firecrawl_client.py` (scrape),
-  `html_controls.py` (DOM → control listing), `chunking.py` (fit to context).
-  A generated DOM (Vaadin, most component frameworks) states no associations at all: no
-  `name`, no `<label>`, no heading tag, no `<form>`. `html_controls.py` therefore falls back
-  to the nearest neighbouring text as a caption and to bold text that is all its block holds
-  as a heading — always after every association the markup does state, never instead of one.
+- `services/web/` — `url_policy.py` (SSRF guard), `browser_client.py` (render + observe),
+  `controls.py` (observations → grouped fields → listing), `chunking.py` (fit to context).
+  The reading of the *page* happens in `docker/browser/observe.js`, in the browser, because
+  every association a form relies on is visual. Stated markup wins where it exists; otherwise
+  a caption is the nearest text left of / above / right of a control, a heading is text set
+  larger or heavier with fields below it, and links and `nav` landmarks are neither. Controls
+  include ARIA widget roles that wrap no native control, so a `role="grid"` filled in row by
+  row is one field with its rows as options.
   The `[ausserhalb eines <form>]` marker is emitted only where most controls are inside a
   form; on a div-built page it would otherwise mark every real field as page furniture and the
   model would discard the whole form.
@@ -103,27 +112,39 @@ The app does *not* refuse to start when the LLM is down; that is what `/health/r
 Pages run sequentially by default. `LLM_MAX_CONCURRENCY` and the vLLM `--max-num-seqs` must be
 raised together — raising only the first just queues inside the server.
 
-The web path keeps the same split: URL policy, then LLM health, then the scrape — everything
-that can fail for the whole run fails before any model call. Firecrawl being down is fatal
-(503); a page that will not load is a 400, because it describes the request.
+The web path keeps the same split: URL policy, then LLM health, then the render — everything
+that can fail for the whole run fails before any model call. The browser service being down is
+fatal (503); a page that will not load is a 400, because it describes the request.
 
-### Firecrawl constraints (measured, not documented)
+### The browser service (`docker/browser`)
 
-- **Screenshots are impossible self-hosted.** The playwright engine adapter neither requests
-  one nor accepts one back — its zod schema admits only `content`, `pageStatusCode`,
-  `pageError`, `contentType`. Screenshots and `actions` need Fire Engine, which is cloud-only.
-  A custom browser service would not help; the adapter strips the field. Do not re-attempt
-  this without forking Firecrawl.
-- **`markdown` drops every form control.** Markdown has no syntax for `<input>`. Always
-  request `rawHtml`.
-- **HTTP 200 + `success: true` says nothing about the page.** A URL that answered 503 comes
-  back as a success; the real status is `data.metadata.statusCode`. Partial results are
-  announced in `data.warning`.
-- **Without `waitFor`, a client-rendered page scrapes as its loading shell.** The Vaadin form
-  at `fpbaselstadtsportamt.zetcom.app` returned 17 KB and zero controls; with `waitFor` it
-  returned 83 KB and 21. Measured on that page: 3000 ms shell, 5000 ms rendered, hence
-  `FIRECRAWL_WAIT_MS=8000`. Firecrawl's own `timeout` defaults to 30 s and is sent explicitly,
-  never below the wait.
+One endpoint, `POST /observe`, returning `{status, title, text, controls[], screenshots[]}`.
+Playwright on `mcr.microsoft.com/playwright`, no framework. Things that cost time to find out:
+
+- **`page.evaluate(string)` does not call the string.** Current Playwright evaluates it as an
+  expression and returns `undefined`. The collector is installed with `addInitScript` instead,
+  which also sidesteps the page's CSP.
+- **A screenshot `clip` below the fold needs `fullPage: true`**, or it fails outright with
+  "Clipped area is either empty or outside the resulting image".
+- **Scrolling the window is not always scrolling the form.** An app shell scrolls an inner
+  pane and leaves the document one viewport tall; tiles follow the element with the largest
+  scrollable area (`__formScrollTo`).
+- **A zero-height element can still be a control.** A virtualised grid is a 0px `<table>`
+  inside the box a person sees, and a styled upload is an invisible `<input>` behind a button:
+  the rendered box comes from the nearest ancestor that has one. `display: none` (no
+  `offsetParent`) stays excluded — a collapsed section is not a field until it is opened.
+- **A caption is often several text nodes.** `Ich habe die <a>Wegleitung</a> gelesen` is three;
+  they are merged when they share a line *and a block*, which is what stops a label merging
+  with the next column.
+- **Every frame is observed, not just the main one.** An embedded form provider puts the whole
+  form in an iframe; a page-level query finds nothing there.
+- **Without a render wait the page is its loading shell.** Measured on the Vaadin form:
+  3000 ms shell, 5000 ms rendered, hence `BROWSER_WAIT_MS=8000`.
+- **`observe.js` is not unit-tested in CI.** `tests/unit` runs against saved observations in
+  `tests/fixtures/*.observation.json`; the collector itself is covered by
+  `tests/integration/test_observe_js.py` (`RUN_BROWSER_TESTS=1`, needs `make docker-up-web`).
+  Change the collector and those fixtures have to be recaptured, or the unit tests describe a
+  browser that no longer exists.
 
 ### Context budgeting
 
@@ -149,10 +170,12 @@ before writing non-trivial code. Highlights that bind here:
 - Config lives in `utils/app_config.py`; `get_env_or_throw()` for required vars, `os.getenv()`
   with a default otherwise. Adding a setting means updating `from_env`, `__str__`, the compose
   env block, and `make env-example`.
-- Tests: `tests/unit` (CI) vs `tests/integration` (local, live LLM). Minimal mocking; build data
-  with `tests/factories.py`. `asyncio_mode = "auto"`, so no `@pytest.mark.asyncio` needed.
-  HTTP is faked with `httpx.MockTransport` injected via a `transport=` parameter, not by
-  patching. Web tests run against saved HTML in `tests/fixtures/` — deterministic, offline.
+- Tests: `tests/unit` (CI) vs `tests/integration` (local, live LLM or live browser). Minimal
+  mocking; build data with `tests/factories.py`. `asyncio_mode = "auto"`, so no
+  `@pytest.mark.asyncio` needed. HTTP is faked with `httpx.MockTransport` injected via a
+  `transport=` parameter, not by patching. Web unit tests run against saved observations in
+  `tests/fixtures/*.observation.json` — deterministic, offline; the HTML beside them is what
+  the integration tests re-render to check the observations still hold.
 - Dependency cooldown is on (`exclude-newer = "1 week"`); `uv lock --locked` runs in `make check`.
 
 ## Eval cases

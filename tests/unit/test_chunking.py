@@ -1,15 +1,24 @@
 """Tests for sizing a control listing to the context actually being served."""
 
+import json
 from pathlib import Path
 
+from datenkatalog_attribute_extractor.services.web.browser_client import ObservedControl
 from datenkatalog_attribute_extractor.services.web.chunking import (
     FALLBACK_CONTEXT_TOKENS,
     budget_characters,
     split_controls,
 )
-from datenkatalog_attribute_extractor.services.web.html_controls import FormControl, extract_controls
+from datenkatalog_attribute_extractor.services.web.controls import FormControl, build_controls
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+
+
+def saved_observation(name: str) -> list[ObservedControl]:
+    """The controls of a saved browser observation."""
+    body = json.loads((FIXTURES / f"{name}.observation.json").read_text(encoding="utf-8"))
+    return [ObservedControl(**entry) for entry in body["controls"]]
+
 
 PRODUCTION_CONTEXT = 250_000
 DEVELOPMENT_CONTEXT = 16_384
@@ -43,7 +52,7 @@ def test_a_page_that_fits_is_a_single_chunk() -> None:
 
 def test_a_real_form_is_one_call_at_production_context() -> None:
     """The 250k box must not be paying for splits it does not need."""
-    controls = extract_controls((FIXTURES / "anmeldung_form.html").read_text(encoding="utf-8"))
+    controls = build_controls(saved_observation("anmeldung_form"))
 
     chunks = split_controls(controls, served_context_tokens=PRODUCTION_CONTEXT, title="Anmeldung")
 
@@ -52,7 +61,7 @@ def test_a_real_form_is_one_call_at_production_context() -> None:
 
 def test_a_real_form_is_still_one_call_on_the_development_box() -> None:
     """The listing is small enough that 16384 tokens is not a constraint for normal forms."""
-    controls = extract_controls((FIXTURES / "anmeldung_form.html").read_text(encoding="utf-8"))
+    controls = build_controls(saved_observation("anmeldung_form"))
 
     chunks = split_controls(controls, served_context_tokens=DEVELOPMENT_CONTEXT, title="Anmeldung")
 

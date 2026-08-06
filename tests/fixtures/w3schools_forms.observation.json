@@ -1,0 +1,176 @@
+{
+ "title": "HTML Forms",
+ "text": "Tutorials References Exercises Certificates\nMenu\nSearch field \n×\nSee More   \n Sign In\n  ★ +1  Get Certified  Upgrade  Academy  Spaces  Practice  Get Certified  Upgrade  Academy  Spaces  Practice\n\nMy W3Schools\nTutorials\n \nReferences\n \nExercises\n \nCertificates\n \nSpaces  Get Certified  Plus  Practice Academy\nAll our Services\n \nLogout\n   \n×\n     ❯   \nHTML CSS JAVASCRIPT SQL PYTHON JAVA PHP W3.CSS C C++ C# HOW TO BOOTSTRAP REACT MYSQL JQUERY EXCEL XML DJANGO NUMPY PANDAS NODEJS DSA TYPESCRIPT ANGULAR ANGULARJS GIT POSTGRESQL MONGODB ASP AI R GO KOTLIN SWIFT SASS VUE GEN AI SCIPY AWS CYBERSECURITY DATA SCIENCE INTRO TO PROGRAMMING INTRO TO HTML & CSS BASH RUST TOOLS \nHTML Tutorial\nHTML HOME HTML Introduction\nIntroduction Exercises\nHTML Editors HTML Basic\nBasic Exercises Code Challenge\nHTML Elements\nElements Exercises Code Challenge\nHTML Attributes\nAttributes Exercises Code Challenge\nHTML Headings\nHeadings Exercises Code Challenge\nHTML Paragraphs\nParagraphs Exercises Code Challenge\nHTML Styles\nStyles Exercises Code Challenge\nHTML Formatting\nFormatting Exercises Code Challenge\nHTML Quotations\nQuotations Exercises Code Challenge\nHTML Comments\nComments Exercises Code Challenge\nHTML Colors\nColors RGB HEX HSL Exercises Code Challenge\nHTML CSS\nCSS Exercises Code Challenge\nHTML Links\nLinks Link Colors Link Bookmarks Exercises Code Challenge\nHTML Images\nImages Image Map Background Images The Picture Element Exercises Code Challenge\nHTML Project HTML Favicon\nFavicon Exercises\nHTML Page Title\nPage Title Exercises\nHTML Tables\nHTML Tables Table Borders Table Sizes Table Headers Padding & Spacing Colspan & Rowspan Table Styling Table Colgroup Exercises Code Challenge\nHTML Lists\nLists Unordered Lists Ordered Lists Other Lists Exercises Code Challenge\nHTML Block & Inline\nBlock & Inline Exercises Code Challenge\nHTML Div\nDiv Exercises Code Challenge\nHTML Classes\nClasses Exercises Code Challenge\nHTML Id\nId Exercises Code Challenge\nHTML Buttons\nButtons Code Challenge\nHTML Iframes\nIframe",
+ "controls": [
+  {
+   "kind": "text",
+   "label": "Search field",
+   "label_source": "markup",
+   "context_path": [],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "checkbox",
+   "label": "",
+   "label_source": "",
+   "context_path": [],
+   "name": "",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "First name:",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "Example"
+   ],
+   "name": "fname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Last name:",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "Example"
+   ],
+   "name": "lname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "First name:",
+   "label_source": "layout",
+   "context_path": [
+    "HTML Forms",
+    "HTML Media"
+   ],
+   "name": "fname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Last name:",
+   "label_source": "layout",
+   "context_path": [
+    "HTML Forms",
+    "HTML Media"
+   ],
+   "name": "lname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "radio",
+   "label": "HTML",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "HTML References",
+    "Example"
+   ],
+   "name": "fav_language",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "radio",
+   "label": "CSS",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "HTML References",
+    "Example"
+   ],
+   "name": "fav_language",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "radio",
+   "label": "JavaScript",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "HTML References",
+    "Example"
+   ],
+   "name": "fav_language",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "checkbox",
+   "label": "I have a bike",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "Checkboxes",
+    "Example"
+   ],
+   "name": "vehicle1",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "checkbox",
+   "label": "I have a car",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "Checkboxes",
+    "Example"
+   ],
+   "name": "vehicle2",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "checkbox",
+   "label": "I have a boat",
+   "label_source": "markup",
+   "context_path": [
+    "HTML Forms",
+    "Checkboxes",
+    "Example"
+   ],
+   "name": "vehicle3",
+   "options": [],
+   "in_form": false
+  },
+  {
+   "kind": "text",
+   "label": "First name:",
+   "label_source": "layout",
+   "context_path": [
+    "HTML Forms",
+    "The Submit Button",
+    "Example"
+   ],
+   "name": "firstname",
+   "options": [],
+   "in_form": true
+  },
+  {
+   "kind": "text",
+   "label": "Last name:",
+   "label_source": "layout",
+   "context_path": [
+    "HTML Forms",
+    "The Submit Button",
+    "Example"
+   ],
+   "name": "lastname",
+   "options": [],
+   "in_form": true
+  }
+ ]
+}

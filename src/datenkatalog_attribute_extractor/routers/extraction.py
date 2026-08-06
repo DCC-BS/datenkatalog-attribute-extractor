@@ -27,8 +27,8 @@ from datenkatalog_attribute_extractor.services.extraction_service import (
 )
 from datenkatalog_attribute_extractor.services.extractors.protocol import UnsupportedSourceError
 from datenkatalog_attribute_extractor.services.llm_health import LlmUnavailableError
-from datenkatalog_attribute_extractor.services.web.firecrawl_client import (
-    FirecrawlUnavailableError,
+from datenkatalog_attribute_extractor.services.web.browser_client import (
+    BrowserUnavailableError,
     PageUnreadableError,
 )
 from datenkatalog_attribute_extractor.services.web.url_policy import UnsafeUrlError
@@ -106,7 +106,7 @@ def to_api_error(error: Exception) -> Exception:
             status=status.HTTP_400_BAD_REQUEST,
             debugMessage=str(error),
         )
-    if isinstance(error, LlmUnavailableError | FirecrawlUnavailableError):
+    if isinstance(error, LlmUnavailableError | BrowserUnavailableError):
         return api_error_exception(
             errorId=ApiErrorCodes.SERVICE_UNAVAILABLE,
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -165,7 +165,9 @@ def create_router(
         page looks like one step of several, the response carries a warning saying so.
         """
         try:
-            return await extraction_service.extract(UrlSource(url=str(request.url)))
+            return await extraction_service.extract(
+                UrlSource(url=str(request.url), force_screenshots=request.force_screenshots)
+            )
         except Exception as error:
             raise to_api_error(error) from error
 
@@ -176,7 +178,10 @@ def create_router(
         Emits the same `progress`, `result` and `error` events as the upload endpoint, so a
         client needs no separate handling for the two kinds of source.
         """
-        return stream_extraction(extraction_service, UrlSource(url=str(request.url)))
+        return stream_extraction(
+            extraction_service,
+            UrlSource(url=str(request.url), force_screenshots=request.force_screenshots),
+        )
 
     return router
 

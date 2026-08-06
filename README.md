@@ -2,9 +2,10 @@
 
 Extracts the input fields of questionnaires and forms as a list of **uniquely named
 attributes** for the Datenkatalog. A PDF is rendered page by page to an image and read by a
-locally hosted **Gemma 4** vision model (vLLM, OpenAI-compatible); an online form is scraped
-with **Firecrawl** and read from its markup. A reviewer then checks and corrects the proposed
-names in a Streamlit UI.
+locally hosted **Gemma 4** vision model (vLLM, OpenAI-compatible); an online form is rendered
+in a **browser** and read either from the controls of the rendered page or, where those say
+too little, from screenshots of it. A reviewer then checks and corrects the proposed names in
+a Streamlit UI.
 
 Only the field **label** is extracted — no data types, no answer options, no mandatory flags.
 A checkbox or radio group is therefore a single field, named after its group heading.
@@ -12,11 +13,12 @@ A checkbox or radio group is therefore a single field, named after its group hea
 ## How it works
 
 ```
-PDF ──► pypdfium2 ──► one PNG per page ─┐
-                                        ├─► Gemma 4 (vLLM) ──► labels + context
-URL ──► Firecrawl ──► control listing ──┘                            │
-                                                                     ▼
-                                                    ensure_unique_names()  ──► FormField[]
+PDF ──► pypdfium2 ─────► one PNG per page ────┐
+                                              ├─► Gemma 4 (vLLM) ──► labels + context
+URL ──► browser ──┬───► control listing ──────┘                            │
+                  └───► screenshot tiles ─────┘  (when the listing says too little)
+                                                                           ▼
+                                                          ensure_unique_names()  ──► FormField[]
 ```
 
 Both sources converge on the same two stages, deliberately separated:
@@ -50,9 +52,8 @@ main area is the work. Two views share one editable table, so an edit in either 
 the other:
 
 * **Vergleich mit Quelle** — for a PDF, the rendered page next to the fields found on *that*
-  page, one selector driving both. For a web form there is no screenshot to show, so the pane
-  gives a link to the live form and the structure as it was read out of the markup: what the
-  model actually saw, which is the more useful thing when an extraction looks wrong.
+  page, one selector driving both. For a web form the pane gives a link to the live form and
+  the structure as it was read from the rendered page.
 * **Alle Felder** — the whole document in one table, plus **CSV herunterladen**.
 
 Both name columns are editable. Duplicate detection always runs across the whole document,
@@ -66,14 +67,14 @@ rather have Excel split the columns automatically.
 cp .env.example .env      # IS_PROD is required; init_logger() fails without it
 make install
 make docker-up            # vLLM + API + UI
-make docker-up-web        # the same, plus Firecrawl for web forms
+make docker-up-web        # the same, plus the browser service for web forms
 ```
 
 The UI is on <http://localhost:8501>, the API on <http://localhost:8000/docs>.
 
-Firecrawl sits behind a compose profile, so `make docker-up` starts nothing extra and PDF
-extraction needs none of it. In production nothing local runs either: `FIRECRAWL_API_URL`
-points at the cluster deployment.
+The browser sits behind a compose profile, so `make docker-up` starts nothing extra and PDF
+extraction needs none of it. In production nothing local runs either: `BROWSER_API_URL` points
+at the cluster deployment.
 
 Without Docker, against an already-running vLLM:
 
@@ -84,61 +85,103 @@ make dev-ui   # UI on :8501
 
 ## Web forms
 
-An online form is scraped once with Firecrawl and read from its markup rather than from a
-picture of it. The DOM states outright what a rendered page only implies: `label for` binds a
-caption to its control, `fieldset`/`legend` and heading nesting give `context_path`, and
-radio buttons sharing a `name` are provably one group and therefore one field.
+An online form is **rendered in a browser this repository owns** (`docker/browser`, Playwright
+plus about a hundred lines) and read from the rendered page. Rendering is not optional: a
+modern form has drawn nothing when its HTML arrives, and a form's structure is visual — a
+caption is the text beside the box you type into, a section heading is the larger text above a
+run of fields.
 
-The scraped page is reduced to one line per control before the model sees it. That reduction
-is the whole trick — a real form page is 420 KB of navigation, styling and tracking around a
-handful of fields, and reducing it typically shrinks the prompt by **two to three orders of
-magnitude**:
+One render produces two independent readings.
+
+### The listing, read from the page
+
+The browser reports one line per control, with the label and heading chain that *stand beside
+and above it on screen*, measured in pixels:
 
 ```
 - [text] "Familienname:" (name=vater_familienname)
 - [radio-gruppe] "Erziehungsberechtigt" (name=berechtigt) — Optionen: Mutter | Vater
+- [tabelle] "Beilagen*" — Optionen: Budget/detaillierte Aufstellung | Offerte/n
 - [search] "Website durchsuchen" (name=q) [ausserhalb eines <form>]
 ```
 
-Controls that no `<form>` encloses are marked. Site search boxes, filter inputs and newsletter
-fields are shaped exactly like form fields, and this is the strongest available signal for
-telling the questionnaire from the website around it. The marker appears only where most
-controls *are* inside a form, so that being outside one is unusual; on a page built without
-`<form>` elements it says nothing and is left off entirely.
+Where the markup states an association — `label for`, `aria-label`, a wrapping `<label>` — it
+is believed, because a page that says what it means is more reliable than any inference. Where
+it states none, which is most generated forms, the reading is geometric:
 
-### Pages that state nothing
+* **A caption** is the nearest text to the left of a control on its line, else directly above
+  it, else — for a tick box — to its right. Each piece of text captions at most one control,
+  and what disqualifies a distant label is not a pixel limit but *another field standing in
+  between*: on a line reading `Vorname [ ] Nachname [ ]`, the first field is what stops
+  *Vorname* labelling the second.
+* **A heading** is text set larger or heavier than the page's body text, with fields below it
+  and none beside it. Levels come from ranking those sizes against each other, so a page that
+  never uses an `<h1>` still yields a heading chain.
+* **A menu is neither.** Text that is nothing but links, or sits in a `nav`/`header`/`footer`
+  landmark, is navigation — the rule that keeps a documentation site's sidebar out of
+  `context_path`.
+* **A control need not be an `<input>`.** ARIA roles count where they wrap no native control,
+  so a `role="grid"` that the applicant fills in row by row is one field, with its rows listed
+  as options.
+* **Every frame is read**, so a form embedded from a form provider counts as part of the page.
 
-A form generated by a widget toolkit — Vaadin, and most component frameworks — has none of
-that structure: bare `<input>` elements with no `name`, no `<label>`, no heading tag and no
-`<form>`, the caption in the neighbouring table cell and the section title in a bold `<div>`.
-Where the markup states no association, the nearest neighbouring text is taken as the caption
-and bold text that is all its block holds is taken as a heading. Both are fallbacks and never
-override an association the page does state.
+Reducing the page this way typically shrinks the prompt by two to three orders of magnitude,
+and the `[ausserhalb eines <form>]` marker is emitted only where most controls *are* inside a
+form — on a page built without them it would mark every real field and mean nothing.
 
-Such a page is also drawn by its own JavaScript, so it is scraped with a render wait
-(`FIRECRAWL_WAIT_MS`, 8 s by default). Without one the scrape returns the loading shell —
-HTTP 200, no controls, no error — and the run reports an empty inventory as a clean success.
+### The screenshots, when the listing says too little
+
+The same render is also photographed, in tiles the size of the browser window, following
+whichever element actually scrolls — an application shell scrolls an inner pane and leaves the
+document one screen tall.
+
+Each tile is one browser window (`BROWSER_VIEWPORT_WIDTH` × `BROWSER_VIEWPORT_HEIGHT`,
+1280×1024 by default), tiles overlap by 80 px so no field is cut in half, and at most
+`MAX_WEB_UNITS` of them are read. One tile is one model call and one "page" in the result, so a
+long form costs several calls where the listing costs one.
+
+Which reading is used is *measured*, not guessed: the share of controls that came away with a
+label. Below `WEB_MIN_LABELLED_SHARE` (0.5 by default), or where the page yielded no controls
+at all, the tiles go to the same vision agent that reads PDF pages, and the run says so in its
+warnings. A field reported on two adjoining tiles — the overlap — is reported once, also stated
+in the warnings.
+
+The choice can be overruled: **Als Bild auslesen** in the sidebar, or `force_screenshots: true`
+on the URL endpoints, reads the screenshots whatever the listing looks like. The measurement is
+a good proxy and not a certainty — a page can hand every control a plausible caption and still
+have them wrong, and only a person looking at the form can tell.
+
+The DOM reading is preferred wherever it works: it gives labels verbatim, proves which tick
+boxes are one group, and costs one model call for a page rather than one per screen.
+
+A run read from tiles carries them back in its result (`page_images`), and the UI shows the
+tile beside the fields read off it. Reopening the live form instead would show a *new* render;
+what a reviewer has to check against is the screen the model was actually given.
+
+### What is not attempted
 
 **Only the entry URL is read.** A form spread over several pages is not followed: later steps
 usually sit behind a submit that needs valid answers, and the links a crawler can see are as
 likely to be navigation as the next step. Where the page looks like one step of several
-("Schritt 1 von 3"), the result carries a warning saying so rather than quietly returning a
-partial inventory.
+("Schritt 1 von 3"), the result carries a warning rather than quietly returning a partial
+inventory.
 
-### Firecrawl cannot take screenshots
+**A page is never filled in.** Fields that appear only after an answer is given are not seen.
 
-A second strategy — screenshot the page, reuse the vision model — was designed and then
-abandoned, because self-hosted Firecrawl cannot produce a screenshot at all. Its playwright
-engine neither asks the browser service for one nor accepts one back; the response schema
-admits only `content`, `pageStatusCode`, `pageError` and `contentType`. Screenshots and
-`actions` both require Fire Engine, which is cloud-only — [SELF_HOST.md][selfhost] states
-this, and upstream issues [#1028][i1028] and [#2059][i2059] were both closed as not planned.
-Swapping in a custom browser service does not help, since the adapter would strip the field.
+### Why not Firecrawl
 
-Two consequences worth knowing before changing this code: `formats: ["markdown"]` is useless
-here, because markdown has no syntax for a form control and drops every one of them, and a
-Firecrawl `200` says nothing about the page — a URL that answered `503` still comes back as
-`success: true`, with the real status only in `data.metadata.statusCode`.
+The web path ran on self-hosted Firecrawl first. It returns HTML and, self-hosted, nothing
+else: screenshots and `actions` live in Fire Engine, which is cloud-only ([SELF_HOST.md][selfhost],
+issues [#1028][i1028] and [#2059][i2059], both closed as not planned), and its playwright
+adapter neither requests a screenshot nor accepts one back. Every visual question therefore had
+to be answered by inferring from markup — sibling order, nesting depth, inline styles — and
+those inferences fit the page they were written against and broke on the next toolkit.
+
+Owning the browser answers those questions directly, and replaced five containers (api, redis,
+rabbitmq, postgres, playwright) with one. Two Firecrawl findings still hold for anything that
+fetches a page: `formats: ["markdown"]` is useless here because markdown has no syntax for a
+form control, and an HTTP 200 from a scraping service says nothing about what the page
+answered.
 
 [selfhost]: https://github.com/firecrawl/firecrawl/blob/main/SELF_HOST.md
 [i1028]: https://github.com/firecrawl/firecrawl/issues/1028

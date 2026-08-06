@@ -1,5 +1,6 @@
 """Tests for the source-agnostic extraction orchestrator."""
 
+import base64
 from collections.abc import AsyncIterator
 
 import pytest
@@ -101,6 +102,27 @@ async def test_extract_streaming_emits_progress_per_page_then_one_result() -> No
     assert [(item.page, item.total_pages, item.fields_found) for item in progress] == [(1, 2, 2), (2, 2, 3)]
     assert len(results) == 1
     assert isinstance(events[-1], ExtractionResponse)
+
+
+async def test_pictures_a_page_was_read_from_are_reported_with_the_fields() -> None:
+    """A web page read from screenshots has no other preview a reviewer could compare against."""
+    pages = [
+        PageResult(page=1, total_pages=2, fields=[], warnings=[], image=b"\x89PNG one"),
+        PageResult(page=2, total_pages=2, fields=[], warnings=[], image=b"\x89PNG two"),
+    ]
+
+    response = await make_service(pages).extract(make_request())
+
+    assert [(image.page, base64.b64decode(image.image_base64)) for image in response.page_images] == [
+        (1, b"\x89PNG one"),
+        (2, b"\x89PNG two"),
+    ]
+
+
+async def test_a_reading_made_without_pictures_reports_none() -> None:
+    response = await make_service(TWO_PAGES).extract(make_request())
+
+    assert response.page_images == []
 
 
 async def test_extract_with_empty_document_raises_empty_document_error() -> None:

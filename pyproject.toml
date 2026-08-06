@@ -15,7 +15,6 @@ dependencies = [
     "pydantic-ai>=2.0.0",
     "pypdfium2>=5.12.1",
     "returns>=0.26.0",
-    "selectolax>=0.4.11",
     "streamlit>=1.60.0",
     "structlog>=25.5.0",
 ]

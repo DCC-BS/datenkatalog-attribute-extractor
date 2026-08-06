@@ -1,0 +1,7 @@
+{
+  "name": "form-browser-service",
+  "private": true,
+  "type": "module",
+  "description": "Renders a form page and reports its controls, geometry and screenshots.",
+  "main": "server.js"
+}

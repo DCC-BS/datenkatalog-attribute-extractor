@@ -21,7 +21,7 @@ from dataclasses import dataclass
 
 from dcc_backend_common.logger import get_logger
 
-from datenkatalog_attribute_extractor.services.web.html_controls import (
+from datenkatalog_attribute_extractor.services.web.controls import (
     FormControl,
     form_marker_is_informative,
     render_listing,

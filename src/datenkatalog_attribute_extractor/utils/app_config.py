@@ -41,19 +41,25 @@ class AppConfig(LlmConfig):
     )
     max_pages: int = Field(default=30, ge=1, description="Maximum number of pages processed per document")
     max_upload_mb: int = Field(default=25, ge=1, description="Maximum accepted upload size in megabytes")
-    firecrawl_api_url: str = Field(
-        default="http://localhost:3002",
-        description="Base URL of the Firecrawl instance used to scrape web forms",
+    browser_api_url: str = Field(
+        default="http://localhost:3100",
+        description="Base URL of the browser service that renders and observes web forms",
     )
-    firecrawl_timeout: int = Field(
+    browser_timeout: int = Field(
         default=120,
         ge=1,
-        description="Seconds to wait for a Firecrawl scrape, which renders the page in a real browser",
+        description="Seconds to wait for a render, which loads the page in a real browser",
     )
-    firecrawl_wait_ms: int = Field(
+    browser_wait_ms: int = Field(
         default=8000,
         ge=0,
-        description="Milliseconds the browser waits after load before the HTML is read, so client-rendered forms are captured",
+        description="Milliseconds the browser waits after load before reading the page, so client-rendered forms are captured",
+    )
+    web_min_labelled_share: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Share of controls that must carry a label for the page to be read from its markup rather than its screenshots",
     )
     max_web_units: int = Field(
         default=30,
@@ -77,12 +83,9 @@ class AppConfig(LlmConfig):
         return f"{self.llm_url.rstrip('/')}/models"
 
     @property
-    def firecrawl_scrape_url(self) -> str:
-        """The Firecrawl scrape endpoint.
-
-        Firecrawl 2.x serves the v2 API; the v1 path is still routed but deprecated upstream.
-        """
-        return f"{self.firecrawl_api_url.rstrip('/')}/v2/scrape"
+    def browser_observe_url(self) -> str:
+        """The browser service's observe endpoint."""
+        return f"{self.browser_api_url.rstrip('/')}/observe"
 
     @classmethod
     @override
@@ -111,9 +114,10 @@ class AppConfig(LlmConfig):
             max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "25")),
             client_url=os.getenv("CLIENT_URL", "http://localhost:8501"),
             backend_url=os.getenv("BACKEND_URL", "http://localhost:8000"),
-            firecrawl_api_url=os.getenv("FIRECRAWL_API_URL", "http://localhost:3002"),
-            firecrawl_timeout=int(os.getenv("FIRECRAWL_TIMEOUT", "120")),
-            firecrawl_wait_ms=int(os.getenv("FIRECRAWL_WAIT_MS", "8000")),
+            browser_api_url=os.getenv("BROWSER_API_URL", "http://localhost:3100"),
+            browser_timeout=int(os.getenv("BROWSER_TIMEOUT", "120")),
+            browser_wait_ms=int(os.getenv("BROWSER_WAIT_MS", "8000")),
+            web_min_labelled_share=float(os.getenv("WEB_MIN_LABELLED_SHARE", "0.5")),
             max_web_units=int(os.getenv("MAX_WEB_UNITS", "30")),
         )
 
@@ -136,8 +140,9 @@ class AppConfig(LlmConfig):
             f"max_upload_mb={self.max_upload_mb}, "
             f"client_url={self.client_url}, "
             f"backend_url={self.backend_url}, "
-            f"firecrawl_api_url={self.firecrawl_api_url}, "
-            f"firecrawl_timeout={self.firecrawl_timeout}, "
-            f"firecrawl_wait_ms={self.firecrawl_wait_ms}, "
+            f"browser_api_url={self.browser_api_url}, "
+            f"browser_timeout={self.browser_timeout}, "
+            f"browser_wait_ms={self.browser_wait_ms}, "
+            f"web_min_labelled_share={self.web_min_labelled_share}, "
             f"max_web_units={self.max_web_units})"
         )

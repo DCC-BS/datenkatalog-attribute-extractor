@@ -4,7 +4,7 @@ The URL comes from whoever is using the app, and the request is made from inside
 cluster. Without a check, `http://169.254.169.254/latest/meta-data/` or a cluster-internal
 service name is as scrapeable as a public form, and the result comes back in the response.
 
-The check happens before Firecrawl is called at all. Firecrawl runs in its own container and
+The check happens before the browser is called at all. The browser runs in its own container and
 may well have protections of its own, but relying on those means trusting a component's
 configuration to enforce our policy.
 """
@@ -78,8 +78,8 @@ async def ensure_safe_url(url: str) -> None:
     only reads the string. Numeric host forms — `http://2130706433/` and the like — are
     covered by the same resolution step, since the resolver normalises them.
 
-    This cannot see where a redirect leads. Firecrawl follows redirects itself, so a URL that
-    passes here may still end up fetching somewhere else; that residual risk is why Firecrawl
+    This cannot see where a redirect leads. The browser follows redirects itself, so a URL that
+    passes here may still end up fetching somewhere else; that residual risk is why the browser
     should not be able to reach anything sensitive in the first place.
 
     Args:

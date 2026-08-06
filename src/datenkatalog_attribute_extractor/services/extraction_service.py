@@ -1,5 +1,6 @@
 """Source-agnostic orchestration of a field extraction run."""
 
+import base64
 from collections.abc import AsyncIterator
 
 from dcc_backend_common.logger import get_logger
@@ -8,6 +9,7 @@ from datenkatalog_attribute_extractor.models.extraction import (
     ExtractionProgress,
     ExtractionResponse,
     ExtractionSource,
+    PageImage,
     UploadSource,
 )
 from datenkatalog_attribute_extractor.models.field import ExtractedField
@@ -128,12 +130,20 @@ class ExtractionService:
 
         collected: list[ExtractedField] = []
         warnings: list[str] = []
+        images: list[PageImage] = []
         page_count = 0
 
         async for page_result in extractor.extract(source):
             collected.extend(page_result.fields)
             warnings.extend(page_result.warnings)
             page_count = max(page_count, page_result.page)
+            if page_result.image is not None:
+                images.append(
+                    PageImage(
+                        page=page_result.page,
+                        image_base64=base64.b64encode(page_result.image).decode(),
+                    )
+                )
             yield ExtractionProgress(
                 page=page_result.page,
                 total_pages=page_result.total_pages,
@@ -157,4 +167,5 @@ class ExtractionService:
             page_count=page_count,
             fields=fields,
             warnings=warnings,
+            page_images=images,
         )

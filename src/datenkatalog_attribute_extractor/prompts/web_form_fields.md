@@ -27,7 +27,8 @@ built without `<form>` elements no line carries it, and its absence says nothing
 ## What counts as a field
 
 Report one entry for every control a person is expected to fill in. The listing has already
-done the grouping: **one line is one field**, including every `-gruppe` line.
+done the grouping: **one line is one field**, including every `-gruppe` line and every
+`[tabelle]` — a table the applicant fills in row by row is one field, named after its caption.
 
 ## What is not a field
 
