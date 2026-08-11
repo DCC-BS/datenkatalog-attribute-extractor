@@ -105,17 +105,22 @@ async def test_extract_streaming_emits_progress_per_page_then_one_result() -> No
 
 
 async def test_pictures_a_page_was_read_from_are_reported_with_the_fields() -> None:
-    """A web page read from screenshots has no other preview a reviewer could compare against."""
+    """A web form has no other preview a reviewer could compare against.
+
+    Several pictures may belong to one unit, in the order they were shown: the web path reads a
+    few consecutive screens in one call, and all of them are what the model was given.
+    """
     pages = [
-        PageResult(page=1, total_pages=2, fields=[], warnings=[], image=b"\x89PNG one"),
-        PageResult(page=2, total_pages=2, fields=[], warnings=[], image=b"\x89PNG two"),
+        PageResult(page=1, total_pages=2, fields=[], warnings=[], images=[b"\x89PNG one", b"\x89PNG two"]),
+        PageResult(page=2, total_pages=2, fields=[], warnings=[], images=[b"\x89PNG three"]),
     ]
 
     response = await make_service(pages).extract(make_request())
 
     assert [(image.page, base64.b64decode(image.image_base64)) for image in response.page_images] == [
         (1, b"\x89PNG one"),
-        (2, b"\x89PNG two"),
+        (1, b"\x89PNG two"),
+        (2, b"\x89PNG three"),
     ]
 
 

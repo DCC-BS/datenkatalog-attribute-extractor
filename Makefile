@@ -48,11 +48,12 @@ bootstrap-case: ## Generate an eval case skeleton from a PDF (PDF=path/to/file.p
 
 .PHONY: env-example
 env-example: ## Print the AppConfig section of .env.example (does NOT write the file)
-	@# Deliberately writes to stdout, not to .env.example. The generator emits only the
-	@# AppConfig fields with TODO placeholders, so writing the file in place destroys the
-	@# hand-maintained logging and docker-compose sections and the curated defaults.
-	@# Copy across what you need instead.
-	@$(TOOLS) generate-env-example $(PKG).utils.app_config AppConfig
+	@# Written to a temporary file and printed from there. The generator defaults to writing
+	@# .env.example itself, and it emits only the AppConfig fields with TODO placeholders, so
+	@# letting it do that destroys the hand-maintained logging and docker-compose sections and
+	@# the curated defaults. Copy across what you need instead.
+	@out=$$(mktemp) && $(TOOLS) generate-env-example -o $$out $(PKG).utils.app_config AppConfig >/dev/null \
+		&& cat $$out && rm -f $$out
 
 .PHONY: docker-build
 docker-build: ## Build the application image

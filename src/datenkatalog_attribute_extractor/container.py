@@ -54,6 +54,7 @@ class Container(containers.DeclarativeContainer):
         timeout_seconds=config.provided.browser_timeout,
         wait_ms=config.provided.browser_wait_ms,
         max_tiles=config.provided.max_web_units,
+        step_wait_ms=config.provided.browser_step_wait_ms,
     )
 
     web_field_agent: providers.Singleton[WebFieldExtractionAgent] = providers.Singleton(
@@ -64,11 +65,11 @@ class Container(containers.DeclarativeContainer):
     web_extractor: providers.Singleton[WebFieldExtractor] = providers.Singleton(
         WebFieldExtractor,
         agent=web_field_agent,
-        vision_agent=form_field_agent,
         client=browser_client,
         health_probe=llm_health_probe,
         max_units=config.provided.max_web_units,
-        min_labelled_share=config.provided.web_min_labelled_share,
+        max_steps=config.provided.web_max_steps,
+        screens_per_call=config.provided.web_screens_per_call,
     )
 
     extractor_registry: providers.Singleton[ExtractorRegistry] = providers.Singleton(

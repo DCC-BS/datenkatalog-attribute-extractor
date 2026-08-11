@@ -1,4 +1,4 @@
-"""Rendering a form page in a browser we control, and reading what it looks like.
+"""Rendering a form in a browser we control, walking its steps, and reading what it looks like.
 
 The web path used to fetch HTML from Firecrawl and infer everything else from the markup:
 which text was a caption, which was a heading, what counted as a control. Self-hosted
@@ -8,13 +8,14 @@ guesses about one toolkit's markup. They held for the page they were written aga
 on the next one.
 
 This client talks to `docker/browser`, a Playwright service in this repository. It renders the
-page once and returns two independent readings of that render:
+page, walks it step by step where it is a wizard, and returns for each step:
 
-* an **observation** — the controls, each with the caption and heading chain that stand beside
-  and above it on the rendered page, measured in pixels rather than inferred from nesting;
-* **screenshots** — the same page in viewport-sized tiles, so that a page the observation
-  cannot read (a canvas form, an image of a form) can still be read by the vision model that
-  already serves the PDF path.
+* **tiles** — the step in viewport-sized screenshots, which is what the model reads;
+* **controls** — the controls the rendered page presents, each with the caption and heading
+  chain measured off the layout, and for every tile which of those controls stand on it.
+
+The controls are not a second reading competing with the picture. They are the page's own
+spelling of the labels in it, handed to the model beside the tile they belong to.
 
 The page's own HTTP status is reported separately from the service's, for the same reason it
 was with Firecrawl: a service that answers 200 says nothing about whether the page did.
@@ -76,12 +77,7 @@ class ObservedControl:
     kind: str
     label: str
     label_source: str
-    """Where the label came from: `markup`, `layout`, or empty when none was found.
-
-    This is what decides whether the DOM reading can be trusted for this page. A page whose
-    controls are mostly unlabelled has not been understood, however many controls were found,
-    and is better read from its screenshots.
-    """
+    """Where the label came from: `markup`, `layout`, or empty when none was found."""
     context_path: list[str] = field(default_factory=list)
     name: str = ""
     options: list[str] = field(default_factory=list)
@@ -89,28 +85,55 @@ class ObservedControl:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class ObservedTile:
+    """One screen of a step: the picture, and the controls standing on it."""
+
+    image: bytes
+    controls: list[ObservedControl]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ObservedStep:
+    """One step of a form: everything the browser saw before it pressed *next*."""
+
+    index: int
+    label: str
+    """What the page calls this step, where it says so in a standard way. Often empty."""
+    title: str
+    tiles: list[ObservedTile]
+    controls: list[ObservedControl]
+    advanced_by: str = ""
+    """The wording on the button that led out of this step, empty if none was pressed."""
+    blocked_by: list[str] = field(default_factory=list)
+    """The controls this step would not accept, where it refused to be left.
+
+    A step that will not advance is the one thing a reviewer has to be able to act on: the
+    inventory stops there, and "it would not advance" is only useful with "because of these".
+    """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ObservedPage:
-    """One rendered page: what it contains, and what it looks like."""
+    """One form as the browser walked it: every step it reached, and why it stopped."""
 
     url: str
     title: str
-    text: str
-    controls: list[ObservedControl]
-    screenshots: list[bytes]
+    steps: list[ObservedStep]
+    stopped_because: str
+    """Why the walk ended: `no_next`, `blocked`, `unchanged`, `max_steps`, or `left_site`.
 
-    @property
-    def labelled_share(self) -> float:
-        """The share of controls that carry a label, from 0 to 1."""
-        if not self.controls:
-            return 0.0
-        return sum(1 for control in self.controls if control.label) / len(self.controls)
+    `blocked` and `unchanged` are the interesting ones: the page refused to advance, which
+    normally means a validation the browser could not satisfy. `blocked` is the clearer of the
+    two — the next button is right there and greyed out. The inventory is then partial, and the
+    last step's `blocked_by` names what it was waiting for.
+    """
 
 
 class BrowserClient:
-    """Renders one page and reports its controls and screenshots.
+    """Renders one form, follows its steps, and reports each step in pictures.
 
-    One page per call, no crawling: a form spread over several URLs is out of scope, and the
-    extractor warns rather than guessing which links are further steps.
+    Stepping is a walk, not a crawl: the page's own *next* button is pressed, never a link into
+    the wider site, and never anything that reads like a submit.
     """
 
     def __init__(
@@ -120,6 +143,7 @@ class BrowserClient:
         timeout_seconds: int,
         wait_ms: int,
         max_tiles: int,
+        step_wait_ms: int,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         """Initialise the client.
@@ -129,13 +153,16 @@ class BrowserClient:
             timeout_seconds: How long a render may take.
             wait_ms: How long the browser waits after load before reading the page, so a
                 client-rendered form is observed rendered rather than as its loading shell.
-            max_tiles: Cap on the screenshot tiles requested for one page.
+            max_tiles: Cap on the screenshot tiles requested per step.
+            step_wait_ms: How long the browser waits after pressing *next* before reading the
+                step it arrived at.
             transport: Optional httpx transport, used by tests to avoid real network calls.
         """
         self._observe_url = observe_url
         self._timeout = timeout_seconds
         self._wait_ms = wait_ms
         self._max_tiles = max_tiles
+        self._step_wait_ms = step_wait_ms
         self._transport = transport
 
     @property
@@ -143,14 +170,15 @@ class BrowserClient:
         """The endpoint this client calls."""
         return self._observe_url
 
-    async def observe(self, page_url: str) -> ObservedPage:
-        """Render one page and read its controls off it.
+    async def observe(self, page_url: str, *, max_steps: int) -> ObservedPage:
+        """Render one form and photograph every step of it that can be reached.
 
         Args:
-            page_url: The page to render.
+            page_url: The form to render.
+            max_steps: How many steps the browser may walk. One reads the first step only.
 
         Returns:
-            The controls found, and the page in screenshot tiles.
+            The steps reached, each in screenshot tiles with the controls on them.
 
         Raises:
             BrowserUnavailableError: If the service is unreachable, times out, or errors.
@@ -161,6 +189,8 @@ class BrowserClient:
             "waitMs": self._wait_ms,
             "maxTiles": self._max_tiles,
             "screenshots": True,
+            "maxSteps": max_steps,
+            "stepWaitMs": self._step_wait_ms,
         }
 
         try:
@@ -198,31 +228,62 @@ class BrowserClient:
             logger.warning("rendered_page_error_status", page_url=page_url, status_code=status)
             raise PageUnreadableError(page_url, f"it answered HTTP {status}")
 
-        raw_controls = body.get("controls")
-        if not isinstance(raw_controls, list):
-            raise BrowserUnavailableError(self._observe_url, "the response contained no controls")
+        raw_steps = body.get("steps")
+        if not isinstance(raw_steps, list):
+            raise BrowserUnavailableError(self._observe_url, "the response contained no steps")
 
-        controls = [_read_control(entry) for entry in raw_controls if isinstance(entry, dict)]
-        raw_tiles = body.get("screenshots")
-        tiles = raw_tiles if isinstance(raw_tiles, list) else []
-        screenshots = [base64.b64decode(tile) for tile in tiles if isinstance(tile, str)]
+        steps = [_read_step(entry, index) for index, entry in enumerate(raw_steps, start=1) if isinstance(entry, dict)]
 
         page = ObservedPage(
             url=str(body.get("url") or page_url),
             title=str(body.get("title") or ""),
-            text=str(body.get("text") or ""),
-            controls=controls,
-            screenshots=screenshots,
+            steps=steps,
+            stopped_because=str(body.get("stopped_because") or ""),
         )
 
         logger.info(
             "page_observed",
             page_url=page_url,
-            controls=len(controls),
-            labelled_share=round(page.labelled_share, 2),
-            screenshots=len(screenshots),
+            steps=len(steps),
+            tiles=sum(len(step.tiles) for step in steps),
+            controls=sum(len(step.controls) for step in steps),
+            stopped_because=page.stopped_because,
         )
         return page
+
+
+def _read_step(entry: dict, fallback_index: int) -> ObservedStep:
+    """Read one step, resolving each tile's control indices into the controls themselves."""
+    raw_controls = entry.get("controls")
+    controls = (
+        [_read_control(item) for item in raw_controls if isinstance(item, dict)]
+        if isinstance(raw_controls, list)
+        else []
+    )
+
+    raw_tiles = entry.get("tiles")
+    tiles: list[ObservedTile] = []
+    for tile in raw_tiles if isinstance(raw_tiles, list) else []:
+        if not isinstance(tile, dict) or not isinstance(tile.get("image"), str):
+            continue
+        indices = tile.get("control_indices")
+        on_tile = (
+            [controls[i] for i in indices if isinstance(i, int) and 0 <= i < len(controls)]
+            if isinstance(indices, list)
+            else []
+        )
+        tiles.append(ObservedTile(image=base64.b64decode(tile["image"]), controls=on_tile))
+
+    index = entry.get("index")
+    return ObservedStep(
+        index=index if isinstance(index, int) and index > 0 else fallback_index,
+        label=str(entry.get("label") or ""),
+        title=str(entry.get("title") or ""),
+        tiles=tiles,
+        controls=controls,
+        advanced_by=str(entry.get("advanced_by") or ""),
+        blocked_by=[str(item) for item in blocked] if isinstance(blocked := entry.get("blocked_by"), list) else [],
+    )
 
 
 def _read_control(entry: dict) -> ObservedControl:

@@ -161,13 +161,11 @@ def create_router(
     async def extract_form_fields_from_url(request: UrlExtractionRequest) -> ExtractionResponse:
         """Extract every form field of an online form.
 
-        The page is fetched once. A form split across several pages is not followed; where the
-        page looks like one step of several, the response carries a warning saying so.
+        A form split over several steps is walked through them by default. Where the walk could
+        not get past a step, the response carries a warning and the inventory is partial.
         """
         try:
-            return await extraction_service.extract(
-                UrlSource(url=str(request.url), force_screenshots=request.force_screenshots)
-            )
+            return await extraction_service.extract(UrlSource(url=str(request.url), follow_steps=request.follow_steps))
         except Exception as error:
             raise to_api_error(error) from error
 
@@ -180,7 +178,7 @@ def create_router(
         """
         return stream_extraction(
             extraction_service,
-            UrlSource(url=str(request.url), force_screenshots=request.force_screenshots),
+            UrlSource(url=str(request.url), follow_steps=request.follow_steps),
         )
 
     return router

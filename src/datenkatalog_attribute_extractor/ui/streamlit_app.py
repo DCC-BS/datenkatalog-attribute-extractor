@@ -7,8 +7,8 @@ downloaded as CSV.
 The layout puts input and status in the sidebar and gives the whole main area to the work.
 Two views share the same editable table:
 
-* *Vergleich mit Quelle* — the page beside the fields found on it: the rendered PDF page, or,
-  for a web form read from screenshots, the screen the model was shown.
+* *Vergleich mit Quelle* — the source beside the fields found in it: the rendered PDF page,
+  or, for a web form, the screen the model was shown.
 * *Alle Felder* — the whole document in one table, with the CSV export.
 """
 
@@ -98,23 +98,22 @@ def run_upload_extraction(filename: str, content: bytes, media_type: str) -> dic
     )
 
 
-def run_url_extraction(url: str, *, force_screenshots: bool = False) -> dict[str, Any] | None:
+def run_url_extraction(url: str, *, follow_steps: bool = True) -> dict[str, Any] | None:
     """Send a URL to the API and report progress.
 
     Args:
         url: Address of the online form.
-        force_screenshots: Read the page from screenshots instead of from its controls.
+        follow_steps: Follow a multi-step form through its steps.
 
     Returns:
         The extraction result, or `None` if the run failed.
     """
-    # "Teil" rather than "Seite": a web page is split to fit the model — by section when it is
-    # read from its controls, by screen when it is read from screenshots — so the unit here is
-    # a part of one page, not a page of a document.
+    # "Teil" rather than "Seite": a web form is read a few consecutive screens at a time,
+    # across however many steps it has, so a unit is a part of the form, not a page.
     return _stream_extraction(
         endpoint=URL_STREAM_ENDPOINT,
         unit="Teil",
-        json={"url": url, "force_screenshots": force_screenshots},
+        json={"url": url, "follow_steps": follow_steps},
     )
 
 
@@ -206,18 +205,19 @@ def _render_url_input() -> None:
         key="form_url",
     )
     st.sidebar.caption(
-        "Es wird nur diese eine Seite gelesen. Mehrstufige Formulare werden erkannt, "
-        "die weiteren Schritte aber nicht abgerufen."
+        "Das Formular wird in einem Browser dargestellt und bildschirmweise ausgewertet — "
+        "bei mehrstufigen Formularen Schritt für Schritt. Das dauert einige Minuten."
     )
-    force_screenshots = st.sidebar.toggle(
-        "Als Bild auslesen",
-        key="force_screenshots",
+    follow_steps = st.sidebar.toggle(
+        "Mehrstufige Formulare durchklicken",
+        value=True,
+        key="follow_steps",
         help=(
-            "Normalerweise werden die Felder aus der gerenderten Seite selbst gelesen; nur wenn "
-            "das zu wenig ergibt, wertet das Modell Bildschirmfotos aus. Diese Option erzwingt "
-            "die Bildauswertung — sinnvoll, wenn die gefundenen Beschriftungen nicht zum "
-            "Formular passen. Die Seite wird dabei in bildschirmgrosse Ausschnitte zerlegt, "
-            "einer pro Aufruf, was länger dauert."
+            "Mehrstufige Formulare geben ihre Felder erst Schritt für Schritt preis. Ist die "
+            "Option gesetzt, füllt der Browser die Pflichtangaben eines Schritts mit "
+            "Platzhaltern und klickt auf «Weiter». Abgeschickt wird das Formular dabei nie: "
+            "Schaltflächen wie «Absenden» oder «Einreichen» werden nie betätigt. Ohne die "
+            "Option wird nur der erste Schritt gelesen."
         ),
     )
     start = st.sidebar.button(
@@ -232,7 +232,7 @@ def _render_url_input() -> None:
         return
 
     with st.sidebar:
-        result = run_url_extraction(url.strip(), force_screenshots=force_screenshots)
+        result = run_url_extraction(url.strip(), follow_steps=follow_steps)
     if result is not None:
         _store_result(result, source_name=url.strip(), pdf_bytes=None)
 
@@ -326,51 +326,42 @@ def select_page(pages: list[int], *, unit: str = "Seite") -> int:
     )
 
 
-def _page_images(result: dict[str, Any]) -> dict[int, bytes]:
-    """The screenshot of each unit, by unit number, for a run that read pictures.
+def _page_images(result: dict[str, Any]) -> dict[int, list[bytes]]:
+    """The screenshots of each unit, by unit number, for a run that read pictures.
 
-    A run read from the page's controls carries none, so this is also what says which of the
-    two readings produced the result.
+    Several per unit: a web form is read a few consecutive screens at a time, and the reviewer
+    has to see all of them to see what the model was given.
     """
-    return {
-        entry["page"]: base64.b64decode(entry["image_base64"])
-        for entry in result.get("page_images", [])
-        if entry.get("image_base64")
-    }
+    images: dict[int, list[bytes]] = {}
+    for entry in result.get("page_images", []):
+        if entry.get("image_base64"):
+            images.setdefault(entry["page"], []).append(base64.b64decode(entry["image_base64"]))
+    return images
 
 
 def _render_web_source(result: dict[str, Any], page: int) -> None:
     """Show what the model was given for a web form.
 
-    A page read from screenshots is shown as those screenshots: the tile the fields beside it
-    came from. Reopening the live form would show a *new* render, which is not the one that
-    was read — the point of the comparison is what the model actually saw.
-
-    A page read from its controls has no picture, so the structure that was read is listed
-    instead, and the live form is one click away.
+    The screens the fields beside them were read from. Reopening the live form would show a
+    *new* render — of the first step at that, where the form has several — which is not what
+    was read; the point of the comparison is what the model actually saw.
     """
     url = st.session_state.get(SOURCE_KEY, "")
-    frame: pd.DataFrame = st.session_state[FIELDS_KEY]
 
     st.link_button("Formular im Browser öffnen", url, width="stretch")
     st.caption(url)
     st.divider()
 
-    images = _page_images(result)
-    if images:
-        image = images.get(page)
-        if image is None:
-            st.info("Für diesen Teil konnte keine Vorschau erzeugt werden.")
-        else:
-            st.caption(f"Bildschirmausschnitt {page}, so wie er ausgewertet wurde:")
-            st.image(image, width="stretch")
+    images = _page_images(result).get(page) or []
+    if not images:
+        st.info("Für diesen Teil konnte keine Vorschau erzeugt werden.")
         return
 
-    st.caption("Struktur, wie sie aus der gerenderten Seite gelesen wurde:")
-    for context, group in frame.groupby("context", sort=False):
-        st.markdown(f"**{context or 'Ohne Abschnitt'}**")
-        for label in group["label"]:
-            st.markdown(f"- {label}")
+    # Stacked in the order they were shown, which is how they were read: one continuous run
+    # down the form, each screen overlapping the one before it.
+    st.caption(f"Teil {page}: {len(images)} Bildschirm(e), so wie sie in einem Aufruf ausgewertet wurden:")
+    for image in images:
+        st.image(image, width="stretch")
 
 
 def render_comparison(result: dict[str, Any]) -> None:

@@ -15,7 +15,7 @@ make docker-up          # full stack (vLLM + API + UI) via docker-compose.dev.ym
 make docker-up-web      # the same plus the browser service (`web` compose profile)
 make eval               # extraction quality against evals/cases; needs a live LLM
 make bootstrap-case PDF=data/x.pdf   # seed an eval case skeleton from AcroForm widgets
-make env-example        # regenerate .env.example from AppConfig
+make env-example        # print the AppConfig section of .env.example
 ```
 
 Single test: `PYTHONPATH=src uv run python -m pytest tests/unit/test_naming.py::test_name -v`.
@@ -24,9 +24,10 @@ without them fail on imports or on `init_logger()`, which requires `IS_PROD`.
 
 Eval subset: `PYTHONPATH=src uv run --env-file .env python -m datenkatalog_attribute_extractor_tools.run_extraction_eval --case-id example`.
 
-`make env-example` prints to stdout and does **not** write the file — the generator emits only
+`make env-example` prints to stdout and does **not** write the file: the generator emits only
 AppConfig fields with `TODO` placeholders, so writing it in place destroys the hand-maintained
-logging and compose sections.
+logging and compose sections. It defaults to writing `.env.example` itself, which is why the
+target redirects it with `-o` to a temporary file — do not call the generator directly.
 
 ## Architecture
 
@@ -34,15 +35,24 @@ Two pipelines converging on one naming pass:
 
 - **PDF** → `pypdfium2` renders one PNG per page → vision LLM (Gemma 4 on vLLM) → labels +
   enclosing headings.
-- **URL** → our own browser (`docker/browser`) renders the page → `observe.js` reports one line
-  per control with the caption and heading chain measured off the rendered layout → text LLM.
-  The same render is photographed in viewport-sized tiles (80 px overlap, capped at
-  `MAX_WEB_UNITS`, one call per tile); when the observation is mostly unlabelled — below
-  `WEB_MIN_LABELLED_SHARE` — those tiles go to the *vision* agent instead, the same one the PDF
-  path uses. `UrlSource.force_screenshots` (UI toggle, `force_screenshots` on the URL
-  endpoints) demands that reading outright. A tile that was read comes back with the fields
+- **URL** → our own browser (`docker/browser`) renders the form, walks it step by step, and
+  photographs each step in viewport-sized tiles (80 px overlap, capped at `MAX_WEB_UNITS`
+  across all steps) → vision LLM, `WEB_SCREENS_PER_CALL` (4) consecutive tiles per call.
+  Beside them go the labels `observe.js` measured off those same screens, as a *spelling
+  reference only* — the image decides what a field is and how fields group.
+
+  Several tiles per call is load-bearing, not an optimisation: shown one tile, the model
+  reports the fragments at its edges as fields — a caption whose box was cut off below, a box
+  whose caption was cut off above. Tiles are never grouped across a step. The ceiling is
+  vLLM's `--limit-mm-per-prompt` (`LLM_IMAGES_PER_PROMPT`), which rejects a request with more
+  images than it allows, so `WEB_SCREENS_PER_CALL` must not exceed it. `UrlSource.follow_steps` (UI toggle,
+  `follow_steps` on the URL endpoints) turns the walk off. A tile comes back with the fields
   (`PageResult.image` → `ExtractionResponse.page_images`, base64 PNG) and is what the UI shows
-  beside them: the live page reopened is a *fresh* render, not the one the model was given.
+  beside them: the live page reopened is a *fresh* render of step one, not what the model saw.
+
+  There is no DOM-only reading any more, and reinstating one is a step backwards: on the
+  cantonal forms it turned the fourteen tick boxes of *Veranstaltungsart* into fourteen fields
+  and collapsed every heading on the page into one, both of which a screenshot shows plainly.
 
 Both then go through `services/naming.py`, which assigns document-wide unique names.
 
@@ -60,8 +70,8 @@ built from the *label*, never by un-slugging `name`: `AHV-Nummer` must not come 
 
 - `models/extraction.py` — `ExtractionSource = UploadSource | UrlSource`. Dispatch is on the
   source object, not a media type string, so a URL (no bytes, no media type) is a first-class
-  source rather than a special case. `PageResult.page` is a *unit of work*: a PDF page or one
-  chunk of a web form.
+  source rather than a special case. `PageResult.page` is a *unit of work*: a PDF page, or one
+  screen of one step of a web form.
 - `services/extractors/protocol.py` — `FieldExtractor` protocol + `ExtractorRegistry`. The
   extension point for new source kinds (Excel). Implement `supports()` (which receives the
   source) + an `extract()` that yields one `PageResult` per unit of work, add it to
@@ -70,25 +80,27 @@ built from the *label*, never by un-slugging `name`: `AHV-Nummer` must not come 
 - `services/extraction_service.py` — orchestration; knows nothing about PDFs. Validates size,
   resolves an extractor, drains its per-page results, runs the naming pass. `extract()` is
   `extract_streaming()` drained, so both paths share one implementation.
-- `services/agents/form_field_agent.py` / `web_field_agent.py` — the vision and text agents.
-  `output_type=NativeOutput(PageExtraction)` is load-bearing in both: a bare
+- `services/agents/form_field_agent.py` / `web_field_agent.py` — both vision agents, one per
+  prompt: a page of a PDF and a screen of a website are not the same thing to read, and the
+  web one has to exclude menus, cookie banners and step indicators and to place the label
+  reference it is handed. `output_type=NativeOutput(PageExtraction)` is load-bearing in both: a bare
   `output_type=PageExtraction` makes pydantic-ai request the result as a tool call, which vLLM
   rejects (`400 tool_choice="required" requires --tool-call-parser`). `NativeOutput` uses
   guided JSON decoding instead. `max_tokens` is deliberately unset.
 - `services/llm_health.py` — `is_fatal_llm_error()` splits failures into fatal and page-local.
   `served_context_tokens` exposes the provider's `max_model_len` so prompts can be sized to
   the context actually being served.
-- `services/web/` — `url_policy.py` (SSRF guard), `browser_client.py` (render + observe),
-  `controls.py` (observations → grouped fields → listing), `chunking.py` (fit to context).
+- `services/web/` — `url_policy.py` (SSRF guard), `browser_client.py` (render + walk + tiles),
+  `tile_hints.py` (a screen's controls → the label reference sent beside its picture).
   The reading of the *page* happens in `docker/browser/observe.js`, in the browser, because
   every association a form relies on is visual. Stated markup wins where it exists; otherwise
   a caption is the nearest text left of / above / right of a control, a heading is text set
   larger or heavier with fields below it, and links and `nav` landmarks are neither. Controls
   include ARIA widget roles that wrap no native control, so a `role="grid"` filled in row by
   row is one field with its rows as options.
-  The `[ausserhalb eines <form>]` marker is emitted only where most controls are inside a
-  form; on a div-built page it would otherwise mark every real field as page furniture and the
-  model would discard the whole form.
+  What that observation is now *for* is narrow: the wording of the labels on one screen. It no
+  longer groups anything (`controls.py` grouped tick boxes by shared `name`; the image does it
+  better) and no longer has to fit a context (`chunking.py`) — both are deleted.
 - `container.py` — dependency-injector wiring; `config` is a `Singleton` (not `Object`) so
   importing the container in tests/tooling/UI does not require a full environment.
 - `ui/` — Streamlit, a thin HTTP client over the streaming endpoint. The API stays independently
@@ -116,14 +128,58 @@ The web path keeps the same split: URL policy, then LLM health, then the render 
 that can fail for the whole run fails before any model call. The browser service being down is
 fatal (503); a page that will not load is a 400, because it describes the request.
 
+A walk that could not get past a step is neither: it yields a real but partial inventory, and
+`stopped_because` becomes a warning on the first result. Silence there would be the worst
+outcome available — a fifth of the fields, looking exactly like the whole form.
+
 ### The browser service (`docker/browser`)
 
-One endpoint, `POST /observe`, returning `{status, title, text, controls[], screenshots[]}`.
+One endpoint, `POST /observe`, returning
+`{status, title, steps[{index, label, controls[], tiles[{image, control_indices}]}], stopped_because}`.
 Playwright on `mcr.microsoft.com/playwright`, no framework. Things that cost time to find out:
 
 - **`page.evaluate(string)` does not call the string.** Current Playwright evaluates it as an
   expression and returns `undefined`. The collector is installed with `addInitScript` instead,
   which also sidesteps the page's CSP.
+- **A government form's CSP also blocks `new Function`.** Passing a predicate into the page as
+  source silently evaluated to nothing on jaxforms, so the autofill filled zero fields and the
+  walk stopped at step one with no error anywhere. Anything running in the page is written out
+  inline in the `evaluate` callback.
+- **Assigning `element.value` does not fill a React form.** The framework owns the value and
+  never learns of the assignment: the field looks filled, validates as empty, and the eGov
+  wizard's *Weiter* stays `disabled`. Values go in through Playwright's own `fill`/`check`.
+- **Requiredness is not always stated, and moves.** The eGov form marks it with `aria-required`
+  and flips it as answers are given, so filling runs up to three rounds; the KESB form marks
+  nothing at all on first render — which is why *every radio group* is answered, not only
+  marked controls.
+- **A server-validated form says what it wanted only after refusing.** jaxforms marks `Ort`,
+  `PLZ` and `Strasse` `aria-invalid` only once *Weiter* has been pressed and rejected, so one
+  fill-and-press is never enough: `ADVANCE_ATTEMPTS` repeats it, and the second round knows
+  strictly more than the first. Without it the walk stops on the step whose requirements had
+  just been announced.
+- **A masked field silently drops what does not fit** (`PLZ` takes digits, so `Test` reads back
+  as `""`), **is never empty** (`Beginn` holds `__:__`, so it looks answered — `MASK_ONLY`),
+  and **eats the first keystroke** moving the caret (`1000` → `_0:00`, hence `Home` first).
+- **An autocomplete refuses to be filled at all**: `fill` is a programmatic change that jQuery
+  UI wipes *after* `fill` returned, and a typed value it does not recognise is cleared when
+  focus leaves. `fillText` therefore tries candidates, types key by key, clicks the suggestion
+  the widget offers, and reads the value back as the test. Never `Enter` — Enter in a text
+  field inside a `<form>` is implicit submission.
+- **A custom dropdown is not where its input is.** React-Select's `dummyInput` is one pixel and
+  off screen; clicking it fails outright. `clickTarget` walks up to the nearest ancestor with a
+  rendered box, exactly as `observe.js` does. Such a widget also keeps its selection *outside*
+  `element.value`, so "did it work" is answered by whether an option was taken, not by reading
+  the input.
+- **A disabled next button is not a missing one.** `findNextButton` reports the two separately;
+  the walk waits `NEXT_ENABLE_MS` for it to come alive, widens the fill to every empty control
+  (`fillRequired(page, everything)`) on the evidence that the page is unsatisfied, and finally
+  stops with `blocked` plus `blocked_by`, the controls the step would not accept.
+- **A step button is routinely covered** by a sticky footer, so the click is forced after
+  visibility and enabledness have been checked directly.
+- **Which controls are on a tile is asked after each scroll**, not computed from the reported
+  boxes: the boxes are document coordinates and the tile offset belongs to whichever inner
+  pane scrolls, so the two are not comparable. `observe.js` marks each control's box element
+  with `data-obs-index`, and a viewport intersection answers the question in either case.
 - **A screenshot `clip` below the fold needs `fullPage: true`**, or it fails outright with
   "Clipped area is either empty or outside the resulting image".
 - **Scrolling the window is not always scrolling the form.** An app shell scrolls an inner
@@ -140,21 +196,13 @@ Playwright on `mcr.microsoft.com/playwright`, no framework. Things that cost tim
   form in an iframe; a page-level query finds nothing there.
 - **Without a render wait the page is its loading shell.** Measured on the Vaadin form:
   3000 ms shell, 5000 ms rendered, hence `BROWSER_WAIT_MS=8000`.
-- **`observe.js` is not unit-tested in CI.** `tests/unit` runs against saved observations in
-  `tests/fixtures/*.observation.json`; the collector itself is covered by
-  `tests/integration/test_observe_js.py` (`RUN_BROWSER_TESTS=1`, needs `make docker-up-web`).
-  Change the collector and those fixtures have to be recaptured, or the unit tests describe a
-  browser that no longer exists.
-
-### Context budgeting
-
-Production serves 250k tokens, the dev box 16384, so a fixed prompt size is wrong in one of
-them. `chunking.py` sizes the budget from the probe's `served_context_tokens`: one call when
-the listing fits, split on section boundaries when it does not, never truncated. Every chunk
-repeats its heading chain, because `context_path` is what disambiguates `Familienname` under
-*Vater* from the one under *Mutter* — a chunk that lost its headings would silently change the
-output. In practice the control listing reduces a page 50-400x, so real forms are one call
-even on the dev box.
+- **Never press a submit.** `SUBMIT_LABEL` is checked before `NEXT_LABEL`, so
+  `Weiter zur zahlungspflichtigen Bestellung` is left alone. This is not a nicety: the walk
+  fills in and advances a *live* government form, and the last button of a wizard sends it.
+- **`observe.js` and the walk are not unit-tested in CI.** `tests/unit` works from canned
+  observations; the browser itself is covered by `tests/integration/test_observe_js.py`
+  (`RUN_BROWSER_TESTS=1`, needs `make docker-up-web`), which also checks that the saved pages
+  in `tests/fixtures/*.observation.json` still observe the same way.
 
 ## Conventions
 
@@ -173,9 +221,9 @@ before writing non-trivial code. Highlights that bind here:
 - Tests: `tests/unit` (CI) vs `tests/integration` (local, live LLM or live browser). Minimal
   mocking; build data with `tests/factories.py`. `asyncio_mode = "auto"`, so no
   `@pytest.mark.asyncio` needed. HTTP is faked with `httpx.MockTransport` injected via a
-  `transport=` parameter, not by patching. Web unit tests run against saved observations in
-  `tests/fixtures/*.observation.json` — deterministic, offline; the HTML beside them is what
-  the integration tests re-render to check the observations still hold.
+  `transport=` parameter, not by patching. Web unit tests work from canned walks built in the
+  test file — deterministic, offline; `tests/fixtures/*.html` and the observations beside them
+  are what the integration tests re-render to check the browser still reads them the same way.
 - Dependency cooldown is on (`exclude-newer = "1 week"`); `uv lock --locked` runs in `make check`.
 
 ## Eval cases

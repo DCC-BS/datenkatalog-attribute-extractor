@@ -1,6 +1,9 @@
 """Request and response contracts for the extraction API."""
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+    field as dataclass_field,
+)
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -24,21 +27,22 @@ class UploadSource:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class UrlSource:
-    """A web page to be fetched and read, dispatched on being a URL at all.
+    """A web form to be rendered and read, dispatched on being a URL at all.
 
-    The page is rendered in a browser and read either as a listing of its controls or, where
-    that listing says too little, from screenshots of the same render. Which of the two was
-    used is reported in the run's warnings; see `services/extractors/web_extractor.py`.
+    The form is rendered in a browser we control and read from screenshots of it, a few
+    consecutive screens per call; see `services/extractors/web_extractor.py`.
     """
 
     url: str
-    force_screenshots: bool = False
-    """Read the page from its screenshots whatever the control listing looks like.
+    follow_steps: bool = True
+    """Walk a multi-step form through its steps instead of reading only the first one.
 
-    The automatic choice is made on how much of the listing carried a label, which is a good
-    proxy and not a certainty: a page can hand every control a plausible caption and still have
-    them wrong, and only a person looking at the form can tell. This is that person overruling
-    the measurement.
+    On by default, because the first step of a cantonal wizard is routinely a handful of fields
+    out of eighty, and a partial inventory is the failure that looks most like a success.
+    Walking means the browser answers the controls a step demands and presses that step's own
+    *next* button — never anything that reads like a submit. Turning this off is for the case
+    where even that is unwanted: a form whose steps have side effects, or a page being re-read
+    quickly.
     """
 
     @property
@@ -64,12 +68,13 @@ class PageResult:
     total_pages: int
     fields: list[ExtractedField]
     warnings: list[str]
-    image: bytes | None = None
-    """The picture this unit was read from, PNG, where there was one.
+    images: list[bytes] = dataclass_field(default_factory=list)
+    """The pictures this unit was read from, PNG, where there were any.
 
-    Only set where the reviewer has no other way of seeing what the model saw: a web page read
-    from screenshots. A PDF page is not carried here — the client already holds the file and
-    renders its own preview — and a listing chunk has no picture at all.
+    A list because one call can carry several: a web form is read a few consecutive screens at
+    a time, and all of them together are what the model was shown. Only set where the reviewer
+    has no other way of seeing that — a PDF page is not carried here, since the client already
+    holds the file and renders its own preview.
     """
 
 
@@ -77,9 +82,9 @@ class UrlExtractionRequest(BaseModel):
     """Body of the URL extraction endpoints."""
 
     url: HttpUrl = Field(description="Address of the online form to read")
-    force_screenshots: bool = Field(
-        default=False,
-        description="Read the page from screenshots of the rendered form instead of from its controls",
+    follow_steps: bool = Field(
+        default=True,
+        description="Follow a multi-step form through its steps instead of reading only the first one",
     )
 
 
@@ -92,11 +97,12 @@ class ExtractionProgress(BaseModel):
 
 
 class PageImage(BaseModel):
-    """The picture one unit of work was read from.
+    """One picture a unit of work was read from.
 
-    Carried in the response so a reviewer sees the same screen the model did. A URL read from
-    screenshots has no other preview: the live page in a browser is a fresh render, which is
-    not necessarily the render the fields were read off.
+    Carried in the response so a reviewer sees the same screens the model did. A web form has
+    no other preview: the live page in a browser is a fresh render of its first step, which is
+    not the render the fields were read off. Several entries may share a `page`, in the order
+    they were shown, because one call is given several consecutive screens.
     """
 
     page: int = Field(description="1-based unit the picture belongs to")
@@ -108,7 +114,7 @@ class ExtractionResponse(BaseModel):
 
     source_name: str = Field(description="Filename of the uploaded document, or the URL that was scraped")
     source_kind: SourceKind = Field(description="Which kind of source the fields were extracted from")
-    page_count: int = Field(description="Number of units processed: PDF pages, HTML chunks or screenshot tiles")
+    page_count: int = Field(description="Number of units processed: PDF pages, or calls over a web form's screens")
     fields: list[FormField] = Field(description="All fields found, with document-wide unique names")
     warnings: list[str] = Field(
         default_factory=list,
@@ -116,5 +122,5 @@ class ExtractionResponse(BaseModel):
     )
     page_images: list[PageImage] = Field(
         default_factory=list,
-        description="The pictures the units were read from, where the reading was made from pictures",
+        description="The pictures the units were read from, in order; several may share a unit",
     )

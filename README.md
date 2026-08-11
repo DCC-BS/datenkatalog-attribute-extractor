@@ -3,9 +3,8 @@
 Extracts the input fields of questionnaires and forms as a list of **uniquely named
 attributes** for the Datenkatalog. A PDF is rendered page by page to an image and read by a
 locally hosted **Gemma 4** vision model (vLLM, OpenAI-compatible); an online form is rendered
-in a **browser** and read either from the controls of the rendered page or, where those say
-too little, from screenshots of it. A reviewer then checks and corrects the proposed names in
-a Streamlit UI.
+in a **browser**, walked through its steps, and read from pictures of it, a few consecutive
+screens per call. A reviewer then checks and corrects the proposed names in a Streamlit UI.
 
 Only the field **label** is extracted — no data types, no answer options, no mandatory flags.
 A checkbox or radio group is therefore a single field, named after its group heading.
@@ -13,11 +12,11 @@ A checkbox or radio group is therefore a single field, named after its group hea
 ## How it works
 
 ```
-PDF ──► pypdfium2 ─────► one PNG per page ────┐
-                                              ├─► Gemma 4 (vLLM) ──► labels + context
-URL ──► browser ──┬───► control listing ──────┘                            │
-                  └───► screenshot tiles ─────┘  (when the listing says too little)
-                                                                           ▼
+PDF ──► pypdfium2 ──► one PNG per page ──────────────┐
+                                                     ├─► Gemma 4 (vLLM) ──► labels + context
+URL ──► browser ──► step 1..n ──► screens, 4 per call ┘         ▲                  │
+                    (fill required, press Weiter)      labels of those screens     │
+                                                       as a spelling reference     ▼
                                                           ensure_unique_names()  ──► FormField[]
 ```
 
@@ -86,87 +85,133 @@ make dev-ui   # UI on :8501
 ## Web forms
 
 An online form is **rendered in a browser this repository owns** (`docker/browser`, Playwright
-plus about a hundred lines) and read from the rendered page. Rendering is not optional: a
-modern form has drawn nothing when its HTML arrives, and a form's structure is visual — a
-caption is the text beside the box you type into, a section heading is the larger text above a
-run of fields.
+plus a few hundred lines), walked through its steps, and read from **screenshots** of it.
+Rendering is not optional: a modern form has drawn nothing when its HTML arrives, and a form's
+structure is visual — a caption is the text beside the box you type into, a section heading is
+the larger text above a run of fields, and a column header applies to the fields under it.
 
-One render produces two independent readings.
+### Read from the picture, spelled from the page
 
-### The listing, read from the page
+The picture is the reading. An earlier version read the DOM instead, as one line per control
+with the heading chain measured off the layout, and fell back to screenshots only where that
+said too little. On real cantonal forms the listing lost exactly what matters: the fourteen
+tick boxes of *Veranstaltungsart* read as fourteen fields, and every heading on the page
+collapsed into one. Both are plain to see in a screenshot.
 
-The browser reports one line per control, with the label and heading chain that *stand beside
-and above it on screen*, measured in pixels:
+What the DOM is still good for is spelling. Beside each screen the model gets the labels the
+browser measured off that same render, marked as a spelling reference:
 
 ```
-- [text] "Familienname:" (name=vater_familienname)
-- [radio-gruppe] "Erziehungsberechtigt" (name=berechtigt) — Optionen: Mutter | Vater
-- [tabelle] "Beilagen*" — Optionen: Budget/detaillierte Aufstellung | Offerte/n
-- [search] "Website durchsuchen" (name=q) [ausserhalb eines <form>]
+Wörtliche Beschriftungen der Bedienelemente auf den obigen Bildschirmen …
+- [text] Bezeichnung der Verantstaltung
+- [checkbox] Anwohnerstrassenfest
+- [radio] kommerzieller Anlass
 ```
 
-Where the markup states an association — `label for`, `aria-label`, a wrapping `<label>` — it
-is believed, because a page that says what it means is more reliable than any inference. Where
-it states none, which is most generated forms, the reading is geometric:
+It says nothing about what a field is or how fields group — the image decides that. It stops
+`AHV-Nummer` coming back as `AHV Nummer` and `Grösse` as `Groesse`, which is what an 11px
+label rendered into a screenshot otherwise invites.
 
-* **A caption** is the nearest text to the left of a control on its line, else directly above
-  it, else — for a tick box — to its right. Each piece of text captions at most one control,
-  and what disqualifies a distant label is not a pixel limit but *another field standing in
-  between*: on a line reading `Vorname [ ] Nachname [ ]`, the first field is what stops
-  *Vorname* labelling the second.
-* **A heading** is text set larger or heavier than the page's body text, with fields below it
-  and none beside it. Levels come from ranking those sizes against each other, so a page that
-  never uses an `<h1>` still yields a heading chain.
-* **A menu is neither.** Text that is nothing but links, or sits in a `nav`/`header`/`footer`
-  landmark, is navigation — the rule that keeps a documentation site's sidebar out of
-  `context_path`.
-* **A control need not be an `<input>`.** ARIA roles count where they wrap no native control,
-  so a `role="grid"` that the applicant fills in row by row is one field, with its rows listed
-  as options.
-* **Every frame is read**, so a form embedded from a form provider counts as part of the page.
+### Screens, several per call
 
-Reducing the page this way typically shrinks the prompt by two to three orders of magnitude,
-and the `[ausserhalb eines <form>]` marker is emitted only where most controls *are* inside a
-form — on a page built without them it would mark every real field and mean nothing.
+The page is photographed in tiles the size of the browser window, following whichever element
+actually scrolls — an application shell scrolls an inner pane and leaves the document one
+screen tall. Each tile is one browser window (`BROWSER_VIEWPORT_WIDTH` ×
+`BROWSER_VIEWPORT_HEIGHT`, 1280×1024 by default), tiles overlap by 80 px, and at most
+`MAX_WEB_UNITS` of them are read across all steps.
 
-### The screenshots, when the listing says too little
+**`WEB_SCREENS_PER_CALL` (4) consecutive screens go into one call**, because a form does not
+break where a screen does. Shown a single tile, the model reports the fragments at its edges as
+fields: a caption whose box was cut off below, a box whose caption was cut off above. Shown the
+run, it sees one field — and the prompt tells it that the screens overlap and that a field on
+two of them is reported once. Screens are never grouped across a step boundary; two steps are
+two different pictures of the form.
 
-The same render is also photographed, in tiles the size of the browser window, following
-whichever element actually scrolls — an application shell scrolls an inner pane and leaves the
-document one screen tall.
+The ceiling is the served model's: vLLM refuses a request carrying more images than
+`--limit-mm-per-prompt` allows, which is why `LLM_IMAGES_PER_PROMPT` (4) and
+`WEB_SCREENS_PER_CALL` are separate settings and the second must not exceed the first. Each
+image also costs `LLM_IMAGE_SOFT_TOKENS` of context.
 
-Each tile is one browser window (`BROWSER_VIEWPORT_WIDTH` × `BROWSER_VIEWPORT_HEIGHT`,
-1280×1024 by default), tiles overlap by 80 px so no field is cut in half, and at most
-`MAX_WEB_UNITS` of them are read. One tile is one model call and one "page" in the result, so a
-long form costs several calls where the listing costs one.
+One call is one "page" in the result and carries all of its screens back (`page_images`, which
+may hold several entries per unit); the UI stacks them beside the fields read off them.
+Reopening the live form instead would show a *new* render, of the first step at that; what a
+reviewer has to check against is what the model was actually given.
 
-Which reading is used is *measured*, not guessed: the share of controls that came away with a
-label. Below `WEB_MIN_LABELLED_SHARE` (0.5 by default), or where the page yielded no controls
-at all, the tiles go to the same vision agent that reads PDF pages, and the run says so in its
-warnings. A field reported on two adjoining tiles — the overlap — is reported once, also stated
-in the warnings.
+### Multi-step forms
 
-The choice can be overruled: **Als Bild auslesen** in the sidebar, or `force_screenshots: true`
-on the URL endpoints, reads the screenshots whatever the listing looks like. The measurement is
-a good proxy and not a certainty — a page can hand every control a plausible caption and still
-have them wrong, and only a person looking at the form can tell.
+A cantonal form is usually a wizard. `WSU_KESB_103_Gefaehrdungsmeldung` has four steps and
+shows five controls on the first; the eGov *Veranstaltung auf öffentlichem Grund* has eight.
+Reading the entry page alone returns a fraction of the inventory that looks like the whole
+thing, which is the worst answer available.
 
-The DOM reading is preferred wherever it works: it gives labels verbatim, proves which tick
-boxes are one group, and costs one model call for a page rather than one per screen.
+So the browser walks the form. Per step it photographs what is there, then:
 
-A run read from tiles carries them back in its result (`page_images`), and the UI shows the
-tile beside the fields read off it. Reopening the live form instead would show a *new* render;
-what a reviewer has to check against is the screen the model was actually given.
+1. answers what the page marks required (`required`, `aria-required`, `aria-invalid`) and
+   every radio group, with placeholder values, repeating up to three times because
+   requiredness moves as answers are given;
+2. presses the page's own *next* button;
+3. if the step did not change, fills and presses **again**, up to three times in all — a
+   server-validated form says which fields it wanted only *after* refusing, so the second
+   round knows strictly more than the first;
+4. observes, and stops when the step still does not change.
+
+Filling a real government form is where the time went. Seven things, nearly all silent — the
+field ends up empty and the step blames it a round later:
+
+- **`element.value = …` does not fill a React form.** The framework owns the value and never
+  learns of the assignment, so the eGov wizard's *Weiter* stays `disabled` while the field
+  looks filled. Values go in through Playwright.
+- **Requiredness is not always stated.** The KESB form marks nothing at all, not even after
+  refusing to advance, which is why every radio group is answered and not only marked controls.
+- **A masked field drops what does not fit.** `PLZ` takes digits, so `Test` reads back as
+  empty. Candidates are tried in turn and the value is read back; no mask is understood, only
+  covered.
+- **An autocomplete refuses to be filled and commits only what it recognises.** `Ort`, `PLZ`
+  and `Strasse` are jQuery UI autocompletes: `fill` is treated as a programmatic change and
+  wiped *after* it returned, and a typed value that is not a real place is cleared when focus
+  leaves. They are typed key by key and the suggestion the widget offers is clicked. Clicked,
+  never `Enter` — Enter in a text field inside a `<form>` triggers implicit submission.
+
+- **A masked field is never empty.** `Beginn` holds `__:__`, so it looks answered and is
+  skipped. A value made only of mask characters counts as none, as does a value the field
+  marks `aria-invalid`.
+- **The first keystroke into a mask is eaten** moving the caret: typing `1000` into `__:__`
+  gives `_0:00`, which is rejected while looking filled in. `Home` first, and the same
+  keystrokes give `10:00`.
+- **A custom dropdown is not clicked where its input is.** React-Select parks a one-pixel
+  `dummyInput` off screen and draws the control as divs around it, so clicking the input fails
+  with "Element is outside of the viewport". The nearest ancestor with a rendered box is
+  clicked instead — the same rule `observe.js` uses to find where a control sits — and the
+  first option offered is taken. Where the dropdown searches instead of just opening, short
+  prefixes (`ba`, `st`, …) are typed to make it offer something.
+
+A field that accepts none of the candidates is marked and left alone for the rest of the step,
+so three stubborn address fields do not cost minutes of retyping on every round.
+
+When a step still will not advance, the run says which fields it was waiting for
+(`blocked_by` → a warning): "The form would not accept: Strasse, Beginn". A next button that is
+present but greyed out is reported as **blocked**, never as "no further step button was
+found" — the second describes a form that has ended, and that is the difference between a
+complete inventory and a quarter of one.
+
+**A submit is never pressed.** Anything reading `absenden`, `abschicken`, `einreichen`,
+`senden`, `bestellen`, `kostenpflichtig`, `zahlungspflichtig` and the like is skipped, checked
+before the *next* test so that `Weiter zur zahlungspflichtigen Bestellung` is left alone. A
+form service takes a filled-in form at its word, and a dummy report to the child protection
+authority is not an acceptable cost of reading its field list.
+
+The walk is capped at `WEB_MAX_STEPS` (10), never leaves the site it started on, and closes any
+tab the form opens. Where it could not get past a step, the result says so and the inventory is
+knowingly partial. `follow_steps: false` on the URL endpoints — **Mehrstufige Formulare
+durchklicken** in the sidebar — reads the first step only.
 
 ### What is not attempted
 
-**Only the entry URL is read.** A form spread over several pages is not followed: later steps
-usually sit behind a submit that needs valid answers, and the links a crawler can see are as
-likely to be navigation as the next step. Where the page looks like one step of several
-("Schritt 1 von 3"), the result carries a warning rather than quietly returning a partial
-inventory.
+**Nothing beyond the form's own steps.** Links into the wider site are not followed, and a
+second form linked from the first is a second run.
 
-**A page is never filled in.** Fields that appear only after an answer is given are not seen.
+**Conditional fields behind an optional answer** are not sought out: only what a step demands
+is filled, so a section that appears after ticking an optional box is not seen.
 
 ### Why not Firecrawl
 
@@ -302,9 +347,8 @@ Dispatch is on the source object rather than a media type string, which is what 
 having no bytes and no media type — be a first-class source instead of a special case
 smuggled through as `text/uri-list`.
 
-A `PageResult.page` is a *unit of work*, not necessarily a page: a PDF page, or one chunk of
-a web form too large for the model's context. The UI calls these "Seite" and "Teil"
-accordingly.
+A `PageResult.page` is a *unit of work*, not necessarily a page: a PDF page, or one screen of
+one call over a run of a web form's screens. The UI calls these "Seite" and "Teil".
 
 ## Structured output: why `NativeOutput`
 

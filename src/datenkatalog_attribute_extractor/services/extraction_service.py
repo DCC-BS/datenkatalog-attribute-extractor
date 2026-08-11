@@ -137,13 +137,10 @@ class ExtractionService:
             collected.extend(page_result.fields)
             warnings.extend(page_result.warnings)
             page_count = max(page_count, page_result.page)
-            if page_result.image is not None:
-                images.append(
-                    PageImage(
-                        page=page_result.page,
-                        image_base64=base64.b64encode(page_result.image).decode(),
-                    )
-                )
+            images.extend(
+                PageImage(page=page_result.page, image_base64=base64.b64encode(image).decode())
+                for image in page_result.images
+            )
             yield ExtractionProgress(
                 page=page_result.page,
                 total_pages=page_result.total_pages,

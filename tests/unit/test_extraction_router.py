@@ -234,23 +234,24 @@ def test_extract_from_url_returns_uniquely_named_fields() -> None:
     assert len(names) == len(set(names))
 
 
-def test_extract_from_url_passes_the_screenshot_request_through() -> None:
+def test_extract_from_url_passes_a_refusal_to_step_through() -> None:
     """The reviewer's override has to survive the whole way to the extractor."""
     extractor = StubWebExtractor()
     client = build_client(extractor=extractor)
 
-    client.post("/extraction/form-fields/url", json={"url": FORM_URL, "force_screenshots": True})
+    client.post("/extraction/form-fields/url", json={"url": FORM_URL, "follow_steps": False})
 
-    assert [source.force_screenshots for source in extractor.sources] == [True]
+    assert [source.follow_steps for source in extractor.sources] == [False]
 
 
-def test_extract_from_url_reads_the_controls_by_default() -> None:
+def test_extract_from_url_follows_the_steps_by_default() -> None:
+    """A wizard read to its first step only is the failure that looks most like a success."""
     extractor = StubWebExtractor()
     client = build_client(extractor=extractor)
 
     client.post("/extraction/form-fields/url", json={"url": FORM_URL})
 
-    assert [source.force_screenshots for source in extractor.sources] == [False]
+    assert [source.follow_steps for source in extractor.sources] == [True]
 
 
 def test_extract_from_url_rejects_a_malformed_url() -> None:

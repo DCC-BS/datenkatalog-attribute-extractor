@@ -1,60 +1,66 @@
-"""Form field extraction from a web page, read from the DOM or from the picture of it."""
+"""Form field extraction from a web form, read from pictures of every step of it."""
 
-import re
 from collections.abc import AsyncIterator
 
 from dcc_backend_common.logger import get_logger
 
 from datenkatalog_attribute_extractor.models.enums import SourceKind
 from datenkatalog_attribute_extractor.models.extraction import ExtractionSource, PageResult, UrlSource
-from datenkatalog_attribute_extractor.services.agents.form_field_agent import FormFieldExtractionAgent
+from datenkatalog_attribute_extractor.models.field import ExtractedField
 from datenkatalog_attribute_extractor.services.agents.web_field_agent import WebFieldExtractionAgent
 from datenkatalog_attribute_extractor.services.llm_health import (
     LlmHealthProbe,
     LlmUnavailableError,
     is_fatal_llm_error,
 )
-from datenkatalog_attribute_extractor.services.web.browser_client import BrowserClient, ObservedPage
-from datenkatalog_attribute_extractor.services.web.chunking import ListingChunk, split_controls
-from datenkatalog_attribute_extractor.services.web.controls import build_controls
+from datenkatalog_attribute_extractor.services.web.browser_client import (
+    BrowserClient,
+    ObservedPage,
+    ObservedStep,
+    ObservedTile,
+)
+from datenkatalog_attribute_extractor.services.web.tile_hints import render_hints
 from datenkatalog_attribute_extractor.services.web.url_policy import ensure_safe_url
 
 logger = get_logger(__name__)
 
-# Wording that marks a page as one step of several. Matching any of these only produces a
-# warning: guessing which links are the remaining steps is not something we attempt.
-#
-# These are phrases, not words. A bare "weiter" matched "Weitere Angaben" — an ordinary
-# section heading on an ordinary single-page form — and flagged it as a wizard. Anything short
-# enough to appear inside a longer German word is too weak to use here.
-MULTI_STEP_PATTERNS = (
-    r"\bn(?:ä|ae)chster schritt\b",
-    r"\bschritt\s+1\s+von\s+\d+",
-    r"\bseite\s+1\s+von\s+\d+",
-    r"\bteil\s+1\s+von\s+\d+",
-    r"\bstep\s+1\s+of\s+\d+",
-    r"\bpage\s+1\s+of\s+\d+",
-    r"\bnext step\b",
-    r"\bweiter zu\b",
-)
-
-_MULTI_STEP = re.compile("|".join(MULTI_STEP_PATTERNS), re.IGNORECASE)
+# Why the walk ended, in words a reviewer can act on. `no_next` and `max_steps` are reported
+# too: a form the walk left early is a partial inventory either way, and the difference between
+# "there was nothing more to press" and "we ran out of allowance" is the difference between
+# accepting the result and raising the limit.
+STOP_REASONS = {
+    "unchanged": (
+        "the form did not accept the placeholder answers and would not advance past step {steps}; "
+        "any later steps are missing"
+    ),
+    "blocked": ("step {steps} would not let its next button be pressed, so any later steps are missing"),
+    "no_next": "no further step button was found after step {steps}",
+    "max_steps": "the walk stopped after the allowed {steps} step(s); a longer form would be cut off here",
+    "left_site": "following the form led away from the site after step {steps}; the walk stopped there",
+}
 
 
 class WebFieldExtractor:
-    """Extracts form fields from a single web page.
+    """Extracts form fields from an online form, step by step and screen by screen.
 
-    The page is rendered once and read twice over. The DOM reading is preferred wherever it
-    works: it gives labels verbatim, states which tick boxes form one group, and costs one
-    call for a whole page rather than one per screen. But it only works where the page carries
-    the information — a form drawn on a canvas, painted as an image, or built so that no text
-    can be tied to any control leaves it with an inventory of nameless boxes.
+    The form is rendered in our own browser, walked through its steps, and photographed. A unit
+    of work is a run of consecutive screens of one step — as many as the model takes images in
+    one call — together with the labels the browser measured off those same screens, as a
+    reference for their spelling.
 
-    Rather than guess which page is which, the reading is *measured*: the share of controls
-    that came away with a label. Below a threshold the same render's screenshots go to the
-    vision agent that already reads PDF pages, and the result says which reading was used.
-    A page spread across several URLs is not followed; where it looks like one step of
-    several, a warning says so rather than the inventory quietly being partial.
+    Screens go in together rather than one at a time because a form does not break where a
+    screen does. A field whose caption ends one screen and whose box begins the next is, to a
+    model shown one of them, a caption with nothing under it and a box with no caption, and
+    both get reported as fields. Shown the run, it sees one field.
+
+    Reading the picture rather than the markup is a decision made against the alternative. The
+    DOM says what a page is built from; it does not say what the page asks. On a generated form
+    every heading collapses into one, and the tick boxes of one question read as fifteen
+    fields — both of which the rendered page shows plainly.
+
+    A form spread over several steps is followed rather than warned about, because the first
+    step of a cantonal wizard is routinely five fields out of eighty. Where the walk cannot get
+    past a step, the run says so and the inventory is knowingly partial.
 
     Attributes:
         source_kind: Always `SourceKind.WEB`.
@@ -65,47 +71,48 @@ class WebFieldExtractor:
     def __init__(
         self,
         agent: WebFieldExtractionAgent,
-        vision_agent: FormFieldExtractionAgent,
         client: BrowserClient,
         health_probe: LlmHealthProbe,
         *,
         max_units: int,
-        min_labelled_share: float,
+        max_steps: int,
+        screens_per_call: int,
     ) -> None:
         """Initialise the extractor.
 
         Args:
-            agent: The text agent that reads a control listing.
-            vision_agent: The agent that reads a rendered page image, shared with the PDF path.
-            client: Renders the page and reports what it looks like.
-            health_probe: Verifies the LLM before any work, and reports the served context.
-            max_units: Hard cap on the units of work — listing chunks or screenshot tiles.
-            min_labelled_share: The share of controls that must carry a label for the DOM
-                reading to be trusted. Below it the screenshots are read instead.
+            agent: The vision agent that reads the screens of a form.
+            client: Renders the form, walks its steps and photographs them.
+            health_probe: Verifies the LLM before any work.
+            max_units: Hard cap on the screens read, across all steps.
+            max_steps: Hard cap on the steps walked.
+            screens_per_call: How many screens go into one model call. Bounded by what the
+                served model accepts — vLLM refuses a request with more images than
+                `--limit-mm-per-prompt` allows.
         """
         self._agent = agent
-        self._vision_agent = vision_agent
         self._client = client
         self._health_probe = health_probe
         self._max_units = max_units
-        self._min_labelled_share = min_labelled_share
+        self._max_steps = max_steps
+        self._screens_per_call = max(1, screens_per_call)
 
     def supports(self, source: ExtractionSource) -> bool:
         """Report whether the source is a URL."""
         return isinstance(source, UrlSource)
 
     async def extract(self, source: ExtractionSource) -> AsyncIterator[PageResult]:
-        """Render a page and read the form fields off it.
+        """Render a form, walk it, and read the fields off every screen.
 
         The order of the checks is deliberate and matches the PDF path: everything that can
         fail for the whole run fails before any model call. The URL policy runs first because
-        it is free, then the LLM is verified, then the page is rendered.
+        it is free, then the LLM is verified, then the form is rendered.
 
         Args:
             source: The URL to read.
 
         Yields:
-            One `PageResult` per unit of work: a listing chunk, or a screenshot tile.
+            One `PageResult` per model call: a run of consecutive screens of one step.
 
         Raises:
             UnsafeUrlError: If the URL is not a public web address.
@@ -120,231 +127,194 @@ class WebFieldExtractor:
         await ensure_safe_url(source.url)
         await self._health_probe.ensure_available()
 
-        page = await self._client.observe(source.url)
-        warnings = _multi_step_warnings(page.text, source.url)
-
-        if self._dom_reading_is_usable(page, forced_to_screenshots=source.force_screenshots):
-            async for result in self._extract_from_listing(page, source.url, warnings):
-                yield result
-            return
-
-        async for result in self._extract_from_screenshots(
-            page, source.url, warnings, requested=source.force_screenshots
-        ):
-            yield result
-
-    def _dom_reading_is_usable(self, page: ObservedPage, *, forced_to_screenshots: bool) -> bool:
-        """Report whether the rendered DOM said enough about this page to be read from.
-
-        Args:
-            page: The rendered page.
-            forced_to_screenshots: Whether the caller asked for the screenshot reading outright.
-
-        Returns:
-            Whether to read the control listing rather than the screenshots.
-        """
-        usable = not forced_to_screenshots and bool(page.controls) and page.labelled_share >= self._min_labelled_share
-        logger.info(
-            "web_reading_chosen",
-            reading="dom" if usable else "vision",
-            forced=forced_to_screenshots,
-            controls=len(page.controls),
-            labelled_share=round(page.labelled_share, 2),
-            threshold=self._min_labelled_share,
-        )
-        return usable
-
-    async def _extract_from_listing(
-        self, page: ObservedPage, page_url: str, warnings: list[str]
-    ) -> AsyncIterator[PageResult]:
-        """Read the page from its control listing, one chunk of the listing per result."""
-        controls = build_controls(page.controls)
-        chunks = split_controls(
-            controls,
-            served_context_tokens=self._health_probe.served_context_tokens,
-            title=page.title,
+        page = await self._client.observe(
+            source.url,
+            max_steps=self._max_steps if source.follow_steps else 1,
         )
 
-        if len(chunks) > self._max_units:
-            warnings.append(
-                f"The page was split into {len(chunks)} parts but only the first {self._max_units} "
-                f"were processed; fields beyond that point are missing"
-            )
-            chunks = chunks[: self._max_units]
+        units = self._plan(page)
+        warnings = self._opening_warnings(page, units, followed=source.follow_steps)
 
-        total = len(chunks)
-        for chunk in chunks:
-            result = await self._extract_chunk(chunk, total)
-            # Warnings ride on the first result so they are reported once, not per chunk.
-            if chunk.index == 1:
-                result = PageResult(
-                    page=result.page,
-                    total_pages=result.total_pages,
-                    fields=result.fields,
-                    warnings=[*warnings, *result.warnings],
-                )
-            yield result
-
-    async def _extract_from_screenshots(
-        self, page: ObservedPage, page_url: str, warnings: list[str], *, requested: bool = False
-    ) -> AsyncIterator[PageResult]:
-        """Read the page from its screenshots, one tile per result.
-
-        This is the same agent and the same prompt the PDF path uses. A screenshot of a form is
-        a picture of a form page, which is exactly what that agent was built for.
-        """
-        tiles = page.screenshots[: self._max_units]
-
-        if not tiles:
+        if not units:
             yield PageResult(
                 page=1,
                 total_pages=1,
                 fields=[],
-                warnings=[*warnings, f"No form controls were found at {page_url}"],
+                warnings=[*warnings, f"Nothing could be photographed at {source.url}"],
             )
             return
 
-        if requested:
-            warnings.append(f"The page at {page_url} was read from screenshots, as requested")
-        else:
-            reason = (
-                f"No form controls could be read from the page markup at {page_url}"
-                if not page.controls
-                else f"Only {round(page.labelled_share * 100)}% of the controls at {page_url} had a readable label"
-            )
-            warnings.append(f"{reason}; the page was read from screenshots instead")
+        async for result in self._read_units(units, warnings):
+            yield result
 
-        if len(page.screenshots) > self._max_units:
+    def _plan(self, page: ObservedPage) -> list[tuple[ObservedStep, list[ObservedTile]]]:
+        """Group the walk into the calls it will take, capped at what the run is allowed.
+
+        Screens are grouped within a step and never across one. Two steps are two different
+        pictures of the form, and a field cut off at the end of one does not continue at the
+        start of the next.
+        """
+        screens = [(step, tile) for step in page.steps for tile in step.tiles][: self._max_units]
+
+        calls: list[tuple[ObservedStep, list[ObservedTile]]] = []
+        for step, tile in screens:
+            last = calls[-1] if calls else None
+            if last and last[0] is step and len(last[1]) < self._screens_per_call:
+                last[1].append(tile)
+                continue
+            calls.append((step, [tile]))
+        return calls
+
+    def _opening_warnings(
+        self, page: ObservedPage, units: list[tuple[ObservedStep, list[ObservedTile]]], *, followed: bool
+    ) -> list[str]:
+        """What the reviewer has to know about the walk before reading the fields."""
+        warnings: list[str] = []
+        steps = len(page.steps)
+
+        if not followed:
+            warnings.append("Only the first step of the form was read, as requested")
+        elif steps > 1:
+            warnings.append(f"The form was followed through {steps} steps")
+
+        # Reported whenever the walk ended for any reason other than having read everything it
+        # was asked to, which on a single-step page is the ordinary case and worth no warning.
+        if followed and steps > 1 or page.stopped_because in {"unchanged", "blocked"}:
+            reason = STOP_REASONS.get(page.stopped_because)
+            if reason:
+                warnings.append(f"Note: {reason.format(steps=steps)}")
+
+        # Which fields held it up, where the browser could tell. Without this a stuck walk is a
+        # partial inventory with no way to judge how partial.
+        refused = page.steps[-1].blocked_by if page.steps else []
+        if refused:
+            warnings.append(f"The form would not accept: {', '.join(refused)}")
+
+        photographed = sum(len(step.tiles) for step in page.steps)
+        read = sum(len(tiles) for _, tiles in units)
+        if photographed > read:
             warnings.append(
-                f"The page filled {len(page.screenshots)} screens but only the first {self._max_units} "
-                f"were processed; fields beyond that point are missing"
+                f"The form filled {photographed} screens but only the first {read} were processed; "
+                f"fields beyond that point are missing"
             )
 
-        total = len(tiles)
-        seen_on_previous_tile: set[str] = set()
+        logger.info(
+            "web_walk_planned",
+            page_url=page.url,
+            steps=steps,
+            screens=read,
+            calls=len(units),
+            stopped_because=page.stopped_because,
+        )
+        return warnings
 
-        for index, tile in enumerate(tiles, start=1):
-            result = await self._extract_tile(tile, index, total)
+    async def _read_units(
+        self, units: list[tuple[ObservedStep, list[ObservedTile]]], warnings: list[str]
+    ) -> AsyncIterator[PageResult]:
+        """Read every run of screens in turn, dropping fields an earlier call already reported."""
+        total = len(units)
+        reported: set[tuple[str, tuple[str, ...]]] = set()
+        previous_call: set[str] = set()
+        previous_step = 0
 
-            # Tiles overlap so that a field cut in half by one boundary is whole in the next,
-            # which means the fields in the overlap are reported twice. A field with the same
-            # label under the same headings, seen on two adjoining screens, is that field
-            # again — the alternative reading, a form that repeats one field in one section, is
-            # not something a form does.
-            kept = [field for field in result.fields if _field_key(field) not in seen_on_previous_tile]
+        for index, (step, tiles) in enumerate(units, start=1):
+            result = await self._extract_screens(tiles, index, total, step)
+
+            if step.index != previous_step:
+                previous_call = set()
+                previous_step = step.index
+
+            kept = [field for field in result.fields if not self._is_repeat(field, reported, previous_call)]
             duplicates = len(result.fields) - len(kept)
-            seen_on_previous_tile = {_field_key(field) for field in result.fields}
 
-            extra = warnings if index == 1 else []
+            previous_call = {_label_key(field) for field in result.fields}
+            reported.update(_field_key(field) for field in result.fields)
+
+            extra = list(warnings) if index == 1 else []
             if duplicates:
-                logger.info("overlapping_fields_merged", tile=index, duplicates=duplicates)
-                extra = [
-                    *extra,
-                    f"{duplicates} field(s) visible on both screen {index - 1} and screen {index} were reported once",
-                ]
+                logger.info("repeated_fields_dropped", unit=index, duplicates=duplicates)
+                extra.append(f"{duplicates} field(s) in part {index} had already been reported and were dropped")
 
-            # The tile rides along with the fields read off it: it is the only picture of what
-            # the model saw, and reopening the live page gives a fresh render, not this one.
+            # The screens ride along with the fields read off them: they are the only picture of
+            # what the model saw, and reopening the live page gives a fresh render, not this one.
             yield PageResult(
                 page=result.page,
                 total_pages=result.total_pages,
                 fields=kept,
                 warnings=[*extra, *result.warnings],
-                image=tile,
+                images=[tile.image for tile in tiles],
             )
 
-    async def _extract_chunk(self, chunk: ListingChunk, total: int) -> PageResult:
-        """Read one listing chunk.
+    @staticmethod
+    def _is_repeat(
+        field: ExtractedField,
+        reported: set[tuple[str, tuple[str, ...]]],
+        previous_call: set[str],
+    ) -> bool:
+        """Whether this field has already been reported, by either of two different rules.
 
-        Chunk-local failures become warnings; failures meaning the LLM is unusable abort.
+        One call ends on the screen the next one begins beside, and adjoining screens overlap
+        by design, so a field on that boundary is read twice; there the label alone decides,
+        because a heading that scrolled off the top is not reported with the fields under it
+        and the `context_path` differs. Within a call the model is told to report such a field
+        once, and does — this catches the seam between calls.
+
+        Across steps the label alone is too blunt — a wizard asks for `Vorname` under
+        `Meldende Person` and again under `Betroffene Person`, and those are two fields. There
+        the headings have to match as well. That rule matters because a form service commonly
+        *adds* each step to the page rather than replacing it, so step three is photographed
+        with all of step two still on it.
+        """
+        return _label_key(field) in previous_call or _field_key(field) in reported
+
+    async def _extract_screens(
+        self, tiles: list[ObservedTile], index: int, total: int, step: ObservedStep
+    ) -> PageResult:
+        """Read one run of consecutive screens in a single call.
+
+        Call-local failures become warnings; failures meaning the LLM is unusable abort.
 
         Raises:
             LlmUnavailableError: If the LLM became unreachable or is misconfigured.
         """
+        controls = [control for tile in tiles for control in tile.controls]
+
         try:
-            extraction = await self._agent.extract_listing(chunk.text)
+            extraction = await self._agent.extract_screens([tile.image for tile in tiles], render_hints(controls))
         except Exception as error:
             if is_fatal_llm_error(error):
-                logger.error("llm_call_failed_fatally", chunk=chunk.index, error=str(error))
+                logger.error("llm_call_failed_fatally", unit=index, error=str(error))
                 raise LlmUnavailableError(self._health_probe.url, str(error) or type(error).__name__) from error
 
-            logger.exception("chunk_extraction_failed", chunk=chunk.index)
-            return PageResult(
-                page=chunk.index,
-                total_pages=total,
-                fields=[],
-                warnings=[f"Part {chunk.index} of the page could not be processed: {error}"],
-            )
-
-        fields = extraction.fields
-        for field in fields:
-            field.page = chunk.index
-
-        warnings = [] if fields else [f"No fields were found in part {chunk.index} of the page"]
-        logger.info("chunk_extracted", chunk=chunk.index, fields=len(fields))
-        return PageResult(page=chunk.index, total_pages=total, fields=fields, warnings=warnings)
-
-    async def _extract_tile(self, tile: bytes, index: int, total: int) -> PageResult:
-        """Read one screenshot tile.
-
-        Raises:
-            LlmUnavailableError: If the LLM became unreachable or is misconfigured.
-        """
-        try:
-            extraction = await self._vision_agent.extract_page(tile)
-        except Exception as error:
-            if is_fatal_llm_error(error):
-                logger.error("llm_call_failed_fatally", tile=index, error=str(error))
-                raise LlmUnavailableError(self._health_probe.url, str(error) or type(error).__name__) from error
-
-            logger.exception("tile_extraction_failed", tile=index)
+            logger.exception("unit_extraction_failed", unit=index)
             return PageResult(
                 page=index,
                 total_pages=total,
                 fields=[],
-                warnings=[f"Screen {index} of the page could not be processed: {error}"],
+                warnings=[f"{_describe(index, step, len(tiles))} could not be processed: {error}"],
             )
 
         fields = extraction.fields
         for field in fields:
             field.page = index
 
-        warnings = [] if fields else [f"No fields were found on screen {index} of the page"]
-        logger.info("tile_extracted", tile=index, fields=len(fields))
+        warnings = [] if fields else [f"No fields were found in {_describe(index, step, len(tiles)).lower()}"]
+        logger.info("unit_extracted", unit=index, step=step.index, screens=len(tiles), fields=len(fields))
         return PageResult(page=index, total_pages=total, fields=fields, warnings=warnings)
 
 
-def _field_key(field) -> str:
-    """What makes two fields on adjoining screens the same field.
+def _describe(index: int, step: ObservedStep, screens: int) -> str:
+    """How one unit of work is referred to in a warning."""
+    where = f"step {step.index}" if not step.label else f"step {step.index} ({step.label})"
+    screen_word = "screen" if screens == 1 else f"{screens} screens"
+    return f"Part {index} of {where} ({screen_word})"
 
-    The label alone, not the label and its headings: a heading that scrolled off the top of
-    the second screen is not reported with the fields under it, so the same field comes back
-    with a different `context_path` on each screen. Comparing labels alone can in principle
-    merge two genuinely different fields that share a label and fall either side of one
-    boundary; that is rarer than the duplication it prevents, and it is reported either way.
-    """
+
+def _label_key(field: ExtractedField) -> str:
+    """What makes two fields on adjoining screens the same field."""
     return field.label.strip().casefold()
 
 
-def _multi_step_warnings(text: str, url: str) -> list[str]:
-    """Warn when the page looks like one step of a multi-step form.
-
-    Only the first page is read, so a wizard yields a partial inventory that looks complete.
-    This cannot be detected reliably — the wording is a heuristic — so it warns and never
-    fails. Only the rendered text is searched, never the markup: class names, data attributes
-    and inline scripts are full of words like "next" and "step" that say nothing about whether
-    a person is looking at step one of a wizard.
-
-    Args:
-        text: The page's rendered text.
-        url: The page's URL, for the message.
-
-    Returns:
-        A single warning, or nothing.
-    """
-    if _MULTI_STEP.search(" ".join(text.split())):
-        return [
-            f"The page at {url} looks like one step of a multi-step form. "
-            "Only this step was read; any further steps are not included"
-        ]
-    return []
+def _field_key(field: ExtractedField) -> tuple[str, tuple[str, ...]]:
+    """What makes two fields in different steps the same field."""
+    return _label_key(field), tuple(heading.strip().casefold() for heading in field.context_path)

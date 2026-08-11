@@ -46,25 +46,34 @@ class AppConfig(LlmConfig):
         description="Base URL of the browser service that renders and observes web forms",
     )
     browser_timeout: int = Field(
-        default=120,
+        default=600,
         ge=1,
-        description="Seconds to wait for a render, which loads the page in a real browser",
+        description="Seconds to wait for a render, which loads a form in a real browser and walks its steps",
     )
     browser_wait_ms: int = Field(
         default=8000,
         ge=0,
         description="Milliseconds the browser waits after load before reading the page, so client-rendered forms are captured",
     )
-    web_min_labelled_share: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Share of controls that must carry a label for the page to be read from its markup rather than its screenshots",
+    browser_step_wait_ms: int = Field(
+        default=5000,
+        ge=0,
+        description="Milliseconds the browser waits after pressing a form's next button before reading the step it arrived at",
+    )
+    web_max_steps: int = Field(
+        default=10,
+        ge=1,
+        description="Maximum steps of a multi-step form the browser walks through before stopping",
     )
     max_web_units: int = Field(
         default=30,
         ge=1,
-        description="Maximum HTML chunks processed per web page, mirroring max_pages",
+        description="Maximum screens processed per web form across all its steps, mirroring max_pages",
+    )
+    web_screens_per_call: int = Field(
+        default=4,
+        ge=1,
+        description="Screens of a web form sent to the model in one call. Must not exceed the vLLM --limit-mm-per-prompt image budget",
     )
     client_url: str = Field(default="http://localhost:8501", description="Origin allowed by CORS")
     backend_url: str = Field(
@@ -115,10 +124,12 @@ class AppConfig(LlmConfig):
             client_url=os.getenv("CLIENT_URL", "http://localhost:8501"),
             backend_url=os.getenv("BACKEND_URL", "http://localhost:8000"),
             browser_api_url=os.getenv("BROWSER_API_URL", "http://localhost:3100"),
-            browser_timeout=int(os.getenv("BROWSER_TIMEOUT", "120")),
+            browser_timeout=int(os.getenv("BROWSER_TIMEOUT", "600")),
             browser_wait_ms=int(os.getenv("BROWSER_WAIT_MS", "8000")),
-            web_min_labelled_share=float(os.getenv("WEB_MIN_LABELLED_SHARE", "0.5")),
+            browser_step_wait_ms=int(os.getenv("BROWSER_STEP_WAIT_MS", "5000")),
+            web_max_steps=int(os.getenv("WEB_MAX_STEPS", "10")),
             max_web_units=int(os.getenv("MAX_WEB_UNITS", "30")),
+            web_screens_per_call=int(os.getenv("WEB_SCREENS_PER_CALL", "4")),
         )
 
     @override
@@ -143,6 +154,8 @@ class AppConfig(LlmConfig):
             f"browser_api_url={self.browser_api_url}, "
             f"browser_timeout={self.browser_timeout}, "
             f"browser_wait_ms={self.browser_wait_ms}, "
-            f"web_min_labelled_share={self.web_min_labelled_share}, "
-            f"max_web_units={self.max_web_units})"
+            f"browser_step_wait_ms={self.browser_step_wait_ms}, "
+            f"web_max_steps={self.web_max_steps}, "
+            f"max_web_units={self.max_web_units}, "
+            f"web_screens_per_call={self.web_screens_per_call})"
         )

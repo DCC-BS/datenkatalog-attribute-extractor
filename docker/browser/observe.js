@@ -41,6 +41,14 @@
   // How far up from a control the search for its rendered box may go.
   const MAX_BOX_ANCESTORS = 3;
 
+  // Attribute left on the element whose box a control occupies, carrying that control's index
+  // in the returned inventory. It is how a screenshot tile is told which controls it shows:
+  // the page is photographed screen by screen, and after each scroll the marked elements that
+  // intersect the viewport are exactly the controls on that screen. Doing it this way rather
+  // than from the boxes reported here is what makes it survive an inner scrolling pane, where
+  // a control's document coordinates and the tile's scroll offset are in different spaces.
+  const BOX_MARKER = "data-obs-index";
+
   // Text nodes closer than this on the same line are one caption. `Ich habe die <a>Wegleitung</a>
   // gelesen` is three nodes and one sentence, and a form's labels are full of such links,
   // abbreviations and asterisks.
@@ -113,6 +121,10 @@
    * and in both cases the field's real box belongs to an ancestor — so the nearest ancestor
    * with an extent is used. What is genuinely not rendered, `display: none`, has no
    * `offsetParent` and is skipped: a collapsed section is not a field until it is opened.
+   *
+   * The node the box was taken from is returned alongside it. The caller marks that node, not
+   * the control, so that asking later "is this control on this screen?" is a question about
+   * something that has an extent — a zero-height `<input>` intersects no screen at all.
    */
   const renderedBox = (element) => {
     if (element.offsetParent === null && window.getComputedStyle(element).position !== "fixed") return null;
@@ -120,7 +132,7 @@
     let node = element;
     for (let step = 0; step <= MAX_BOX_ANCESTORS && node; step += 1) {
       const rect = node.getBoundingClientRect();
-      if (rect.width >= minControlSize && rect.height >= minControlSize) return boxOf(rect);
+      if (rect.width >= minControlSize && rect.height >= minControlSize) return { box: boxOf(rect), node };
       node = node.parentElement;
     }
     return null;
@@ -217,10 +229,15 @@
 
   const records = new Map();
 
+  // A page is observed once per step of a wizard, in the same document. Marks left by the
+  // previous step would otherwise still be there, pointing at indices of an inventory that no
+  // longer exists.
+  for (const marked of document.querySelectorAll(`[${BOX_MARKER}]`)) marked.removeAttribute(BOX_MARKER);
+
   const addControl = (element, kind) => {
     if (records.has(element)) return;
-    const box = renderedBox(element);
-    if (!box) return;
+    const rendered = renderedBox(element);
+    if (!rendered) return;
     records.set(element, {
       kind,
       name: clean(element.getAttribute("name")),
@@ -228,7 +245,8 @@
       caption: "",
       options: optionsOf(element),
       in_form: element.closest("form") !== null,
-      box,
+      box: rendered.box,
+      boxNode: rendered.node,
     });
   };
 
@@ -445,6 +463,9 @@
     item.control.context_path = stack.map((entry) => entry.text);
   }
 
+  // Marked last, so an index always refers to the inventory this call is about to return.
+  controls.forEach((control, index) => control.boxNode.setAttribute(BOX_MARKER, String(index)));
+
   return {
     title: clean(document.title),
     text: (document.body ? document.body.innerText || "" : "").slice(0, 20000),
@@ -452,7 +473,8 @@
       document.documentElement.scrollHeight,
       document.body ? document.body.scrollHeight : 0,
     ),
-    controls: controls.map((control) => ({
+    controls: controls.map((control, index) => ({
+      index,
       kind: control.kind,
       label: control.stated_label || control.caption,
       label_source: control.stated_label ? "markup" : control.caption ? "layout" : "",

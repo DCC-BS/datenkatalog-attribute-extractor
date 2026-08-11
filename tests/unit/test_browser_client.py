@@ -32,6 +32,16 @@ CONTROL = {
     "in_form": True,
 }
 
+STEP = {
+    "index": 1,
+    "label": "Start",
+    "title": "Formular",
+    "controls": [CONTROL],
+    "tiles": [{"image": TILE, "control_indices": [0]}],
+    "filled": 1,
+    "advanced_by": "Weiter",
+}
+
 
 def build_client(handler, *, wait_ms: int = 8000) -> BrowserClient:
     """A client whose transport is a canned handler, so no browser is touched."""
@@ -40,19 +50,19 @@ def build_client(handler, *, wait_ms: int = 8000) -> BrowserClient:
         timeout_seconds=5,
         wait_ms=wait_ms,
         max_tiles=12,
+        step_wait_ms=5000,
         transport=httpx.MockTransport(handler),
     )
 
 
 def ok_body(**overrides) -> dict:
-    """A successful observation."""
+    """A successful walk of a one-step form."""
     return {
         "url": PAGE_URL,
         "status": 200,
         "title": "Formular",
-        "text": "Formular",
-        "controls": [CONTROL],
-        "screenshots": [TILE],
+        "steps": [STEP],
+        "stopped_because": "no_next",
     } | overrides
 
 
@@ -65,62 +75,72 @@ def responder(body: dict, http_status: int = 200):
     return handle
 
 
-async def test_an_observation_becomes_controls_and_screenshots() -> None:
-    page = await build_client(responder(ok_body())).observe(PAGE_URL)
+async def test_a_walk_becomes_steps_of_tiles() -> None:
+    page = await build_client(responder(ok_body())).observe(PAGE_URL, max_steps=5)
 
     assert page.title == "Formular"
-    assert [control.label for control in page.controls] == ["Vorname"]
-    assert page.controls[0].label_source == "layout"
-    assert page.screenshots == [base64.b64decode(TILE)]
+    assert page.stopped_because == "no_next"
+    assert [step.label for step in page.steps] == ["Start"]
+    assert page.steps[0].tiles[0].image == base64.b64decode(TILE)
+    assert [control.label for control in page.steps[0].controls] == ["Vorname"]
 
 
-async def test_the_render_wait_is_sent() -> None:
-    """A client-rendered form is a loading shell without it — no controls, and no error."""
+async def test_a_tile_carries_the_controls_standing_on_it() -> None:
+    """Which is what makes the reference beside a screen a reference for *that* screen."""
+    second = CONTROL | {"label": "Nachname"}
+    step = STEP | {
+        "controls": [CONTROL, second],
+        "tiles": [{"image": TILE, "control_indices": [1]}],
+    }
+
+    page = await build_client(responder(ok_body(steps=[step]))).observe(PAGE_URL, max_steps=1)
+
+    assert [control.label for control in page.steps[0].tiles[0].controls] == ["Nachname"]
+
+
+async def test_a_control_index_out_of_range_is_dropped_rather_than_raising() -> None:
+    """A service and a client can disagree; a stale index must not take the run down."""
+    step = STEP | {"tiles": [{"image": TILE, "control_indices": [0, 7]}]}
+
+    page = await build_client(responder(ok_body(steps=[step]))).observe(PAGE_URL, max_steps=1)
+
+    assert [control.label for control in page.steps[0].tiles[0].controls] == ["Vorname"]
+
+
+async def test_the_waits_and_the_step_allowance_are_sent() -> None:
+    """A client-rendered form is a loading shell without the wait — no controls, and no error."""
     seen: dict = {}
 
     def handle(request: httpx.Request) -> httpx.Response:
         seen.update(json.loads(request.content))
         return httpx.Response(200, json=ok_body())
 
-    await build_client(handle, wait_ms=5000).observe(PAGE_URL)
+    await build_client(handle, wait_ms=5000).observe(PAGE_URL, max_steps=4)
 
     assert seen["waitMs"] == 5000
+    assert seen["stepWaitMs"] == 5000
+    assert seen["maxSteps"] == 4
     assert seen["url"] == PAGE_URL
     assert seen["screenshots"] is True
-
-
-async def test_the_labelled_share_is_measured_over_all_controls() -> None:
-    unlabelled = CONTROL | {"label": "", "label_source": ""}
-    body = ok_body(controls=[CONTROL, unlabelled, unlabelled, unlabelled])
-
-    page = await build_client(responder(body)).observe(PAGE_URL)
-
-    assert page.labelled_share == 0.25
-
-
-async def test_a_page_with_no_controls_has_a_labelled_share_of_zero() -> None:
-    page = await build_client(responder(ok_body(controls=[]))).observe(PAGE_URL)
-
-    assert page.labelled_share == 0.0
 
 
 async def test_a_page_that_answered_an_error_status_is_page_local_not_fatal() -> None:
     """The service rendered something; that the page was a 404 page is the caller's problem."""
     with pytest.raises(PageUnreadableError, match="404"):
-        await build_client(responder(ok_body(status=404))).observe(PAGE_URL)
+        await build_client(responder(ok_body(status=404))).observe(PAGE_URL, max_steps=1)
 
 
 async def test_a_navigation_failure_is_page_local_not_fatal() -> None:
     body = {"error": "net::ERR_NAME_NOT_RESOLVED at https://nope.example", "kind": "navigation"}
 
     with pytest.raises(PageUnreadableError, match="ERR_NAME_NOT_RESOLVED"):
-        await build_client(responder(body, http_status=502)).observe(PAGE_URL)
+        await build_client(responder(body, http_status=502)).observe(PAGE_URL, max_steps=1)
 
 
 @pytest.mark.parametrize("status", [500, 503])
 async def test_browser_service_errors_are_fatal(status: int) -> None:
     with pytest.raises(BrowserUnavailableError, match=str(status)):
-        await build_client(responder({"error": "boom"}, http_status=status)).observe(PAGE_URL)
+        await build_client(responder({"error": "boom"}, http_status=status)).observe(PAGE_URL, max_steps=1)
 
 
 async def test_an_unreachable_browser_is_fatal() -> None:
@@ -128,7 +148,7 @@ async def test_an_unreachable_browser_is_fatal() -> None:
         raise httpx.ConnectError("Connection refused")
 
     with pytest.raises(BrowserUnavailableError, match="Connection refused"):
-        await build_client(handle).observe(PAGE_URL)
+        await build_client(handle).observe(PAGE_URL, max_steps=1)
 
 
 async def test_a_timeout_is_fatal() -> None:
@@ -136,7 +156,7 @@ async def test_a_timeout_is_fatal() -> None:
         raise httpx.ReadTimeout("timed out")
 
     with pytest.raises(BrowserUnavailableError):
-        await build_client(handle).observe(PAGE_URL)
+        await build_client(handle).observe(PAGE_URL, max_steps=1)
 
 
 async def test_a_non_json_response_is_fatal() -> None:
@@ -144,12 +164,12 @@ async def test_a_non_json_response_is_fatal() -> None:
         return httpx.Response(200, text="<html>not json</html>")
 
     with pytest.raises(BrowserUnavailableError, match="not valid JSON"):
-        await build_client(handle).observe(PAGE_URL)
+        await build_client(handle).observe(PAGE_URL, max_steps=1)
 
 
-async def test_a_response_without_controls_is_fatal() -> None:
-    """No `controls` key at all is a broken service, not a page without fields."""
-    body = {"url": PAGE_URL, "status": 200, "title": "", "text": "", "screenshots": []}
+async def test_a_response_without_steps_is_fatal() -> None:
+    """No `steps` key at all is a broken service, not a form without fields."""
+    body = {"url": PAGE_URL, "status": 200, "title": ""}
 
-    with pytest.raises(BrowserUnavailableError, match="no controls"):
-        await build_client(responder(body)).observe(PAGE_URL)
+    with pytest.raises(BrowserUnavailableError, match="no steps"):
+        await build_client(responder(body)).observe(PAGE_URL, max_steps=1)
