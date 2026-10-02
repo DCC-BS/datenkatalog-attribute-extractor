@@ -1,7 +1,7 @@
 services:
   llm:
     platform: linux/amd64
-    image: vllm/vllm-openai:v0.24.0
+    image: vllm/vllm-openai:v0.30.0
     container_name: llm
     expose:
       - "8000"
@@ -19,8 +19,11 @@ services:
     volumes:
       - ${HUGGING_FACE_CACHE_DIR:-${HOME}/.cache/huggingface}:/root/.cache/huggingface
     # Adapted from text-mate-backend, with three deliberate changes for vision input:
-    #   * --limit-mm-per-prompt allows one image per request; the text-only config used
-    #     image: 0, which rejects every image request outright.
+    #   * --limit-mm-per-prompt allows LLM_IMAGES_PER_PROMPT images per request; the text-only
+    #     config used image: 0, which rejects every image request outright. It is four rather
+    #     than one because the web path sends consecutive screens of a form together: a field
+    #     split by a screen boundary is two halves to a model shown one of them. Raising it
+    #     costs context per request, so WEB_SCREENS_PER_CALL must not exceed it.
     #   * --disable_chunked_mm_input removed, because it blocks image prefill.
     #   * --mm-processor-kwargs raises the per-image token budget from the default 280 to
     #     560; 280 is too coarse to read dense German form labels reliably.
@@ -48,7 +51,7 @@ services:
       --reasoning-parser gemma4
       --async-scheduling
       --enforce-eager
-      --limit-mm-per-prompt '{"image": 1, "video": 0}'
+      --limit-mm-per-prompt '{"image": ${LLM_IMAGES_PER_PROMPT:-4}, "video": 0}'
       --mm-processor-kwargs '{"max_soft_tokens": ${LLM_IMAGE_SOFT_TOKENS:-560}}'
       --uvicorn-log-level warning
 
@@ -78,9 +81,15 @@ services:
       # Reachable by service name on the compose network when the `web` profile is up. In
       # production this points at the cluster's browser deployment instead.
       - BROWSER_API_URL=${BROWSER_API_URL:-http://browser:3100}
-      - BROWSER_TIMEOUT=${BROWSER_TIMEOUT:-120}
+      - BROWSER_TIMEOUT=${BROWSER_TIMEOUT:-600}
       - BROWSER_WAIT_MS=${BROWSER_WAIT_MS:-8000}
-      - WEB_MIN_LABELLED_SHARE=${WEB_MIN_LABELLED_SHARE:-0.5}
+      - BROWSER_STEP_WAIT_MS=${BROWSER_STEP_WAIT_MS:-5000}
+      # How much the browser may send while walking a form. `all` until an evidence run says
+      # which relaxation is safe; `navigation` is what a server-validated wizard needs.
+      - WEB_BLOCK_WRITES=${WEB_BLOCK_WRITES:-all}
+      - WEB_MAX_STEPS=${WEB_MAX_STEPS:-10}
+      - MAX_WEB_UNITS=${MAX_WEB_UNITS:-30}
+      - WEB_SCREENS_PER_CALL=${WEB_SCREENS_PER_CALL:-4}
     depends_on:
       - llm
 
@@ -104,6 +113,21 @@ services:
       - /app/src/datenkatalog_attribute_extractor/ui/streamlit_app.py
     depends_on:
       - app-backend
+
+  # A multi-step form that misbehaves the way the cantonal ones do, for the integration tests to
+  # walk. It is the only place the promise "this never submits a form" can be checked against
+  # something other than our own reasoning: it records every hit on its `/submit` endpoint, and
+  # a walk that reaches the last step must leave that record empty.
+  wizard:
+    build:
+      context: ./wizard
+    mem_limit: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
 
   # Chromium plus a hundred lines of Playwright, in place of Firecrawl's five containers. It
   # exists because reading a form needs the rendered page: the geometry that says which text
