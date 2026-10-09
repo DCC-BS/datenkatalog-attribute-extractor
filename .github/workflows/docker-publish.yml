@@ -1,6 +1,11 @@
 name: Build and Publish Docker Image
 
 on:
+  # Publish only after CI has passed on main; the manual trigger stays for ad-hoc builds.
+  workflow_run:
+    workflows: ["Main"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -9,6 +14,7 @@ permissions:
 
 jobs:
   publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     uses: DCC-BS/ci-workflows/.github/workflows/publish-docker.yml@v9
     secrets: inherit
     with:

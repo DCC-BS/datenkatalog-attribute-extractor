@@ -1,0 +1,39 @@
+# PDF form extraction only: the API and the Streamlit UI, pointed at an LLM you already run.
+# No vLLM and no browser service are started; web-form extraction is not part of this stack.
+#
+#   cp .env.example .env     # then fill in LLM_URL, LLM_MODEL and LLM_API_KEY
+#   docker compose up -d
+
+services:
+  app-backend:
+    image: ghcr.io/dcc-bs/datenkatalog-attribute-extractor:${IMAGE_TAG:-latest}
+    container_name: app-backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - IS_PROD=true
+      - LLM_URL=${LLM_URL:?Set LLM_URL in .env}
+      - LLM_MODEL=${LLM_MODEL:?Set LLM_MODEL in .env}
+      - LLM_API_KEY=${LLM_API_KEY:-not-needed}
+      # Not every OpenAI-compatible server has a /health route (vLLM does, hosted APIs do
+      # not), but all of them have /models, which the readiness check calls anyway.
+      - LLM_HEALTH_CHECK_URL=${LLM_URL}/models
+
+  app-frontend:
+    image: ghcr.io/dcc-bs/datenkatalog-attribute-extractor:${IMAGE_TAG:-latest}
+    container_name: app-frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8501}:8501"
+    environment:
+      - BACKEND_URL=http://app-backend:8000
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    command:
+      - streamlit
+      - run
+      - /app/src/datenkatalog_attribute_extractor/ui/streamlit_app.py
+    depends_on:
+      - app-backend

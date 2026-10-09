@@ -1,5 +1,39 @@
 # Datenkatalog Attribute Extractor
 
+## Deploy on your server (PDF extraction)
+
+CI publishes the image `ghcr.io/dcc-bs/datenkatalog-attribute-extractor` to GHCR whenever `main`
+passes its checks. This deployment covers **PDF forms only**: it runs the API and the Streamlit
+UI and talks to an LLM you already operate. It starts no model server and no browser, so the
+*Web-Formular* option in the UI does not work here.
+
+You need Docker with the compose plugin and an OpenAI-compatible endpoint that serves a
+**vision-capable** model (the project is built for Gemma 4 on vLLM).
+
+```bash
+mkdir datenkatalog-extractor && cd datenkatalog-extractor
+curl -O https://raw.githubusercontent.com/DCC-BS/datenkatalog-attribute-extractor/main/deploy/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/DCC-BS/datenkatalog-attribute-extractor/main/deploy/.env.example
+# edit .env: set the three LLM_* values
+docker compose up -d
+```
+
+The UI is then on port 8501. If the package is private, run `docker login ghcr.io` first.
+
+| Variable | Meaning |
+|---|---|
+| `LLM_URL` | Base URL of the OpenAI-compatible API, including `/v1`, no trailing slash |
+| `LLM_MODEL` | Model name as listed under `GET {LLM_URL}/models` |
+| `LLM_API_KEY` | Bearer token for the API (default `not-needed`, which a local vLLM ignores) |
+
+Optional: `PORT` (host port of the UI) and `IMAGE_TAG` (default `latest`; the image is also tagged
+with the version from `pyproject.toml`). Everything else uses the defaults of the image. The
+container does not start the API unless `LLM_URL` and `LLM_MODEL` are set, and an extraction fails
+with a 503 up front if the LLM is unreachable or does not serve that model.
+
+Put a reverse proxy with TLS and authentication in front of port 8501; the app has none of its own.
+Update with `docker compose pull && docker compose up -d`.
+
 Extracts the input fields of questionnaires and forms as a list of **uniquely named
 attributes** for the Datenkatalog. A PDF is rendered page by page to an image and read by a
 locally hosted **Gemma 4** vision model (vLLM, OpenAI-compatible); an online form is rendered
