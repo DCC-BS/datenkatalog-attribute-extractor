@@ -227,6 +227,31 @@
     return texts.slice(0, maxOptions);
   };
 
+  /**
+   * What names this control, for telling one *step* from another rather than for reading.
+   *
+   * The walk has to know whether pressing *Weiter* moved the form on, and it cannot ask the
+   * labels: a step that refuses re-renders with "Feld darf nicht leer sein" appended to every
+   * caption, which by its labels is an entirely new page. So a control is identified by what it
+   * is called — `name`, or failing that `id`.
+   *
+   * A form built out of divs may have neither, so the last resort is where the control stands in
+   * the document: tag names and child positions from the body down. That is stable across a
+   * re-render of the same step, which is what it is for, and it moves if a field is inserted
+   * ahead of it — acceptable, because a form that inserts fields has changed.
+   */
+  const identityOf = (element) => {
+    const stated = clean(element.getAttribute("name")) || clean(element.getAttribute("id"));
+    if (stated) return stated;
+
+    const path = [];
+    for (let node = element; node && node !== document.body; node = node.parentElement) {
+      const position = node.parentElement ? [...node.parentElement.children].indexOf(node) : 0;
+      path.unshift(`${node.tagName.toLowerCase()}${position}`);
+    }
+    return path.join("/");
+  };
+
   const records = new Map();
 
   // A page is observed once per step of a wizard, in the same document. Marks left by the
@@ -241,6 +266,7 @@
     records.set(element, {
       kind,
       name: clean(element.getAttribute("name")),
+      identity: identityOf(element),
       stated_label: statedLabel(element),
       caption: "",
       options: optionsOf(element),
@@ -480,6 +506,8 @@
       label_source: control.stated_label ? "markup" : control.caption ? "layout" : "",
       context_path: control.context_path || [],
       name: control.name,
+      // Not a label and not for reading: what the walk tells steps apart by.
+      identity: control.identity,
       options: control.options,
       in_form: control.in_form,
     })),

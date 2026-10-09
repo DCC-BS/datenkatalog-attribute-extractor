@@ -66,7 +66,7 @@ rather have Excel split the columns automatically.
 cp .env.example .env      # IS_PROD is required; init_logger() fails without it
 make install
 make docker-up            # vLLM + API + UI
-make docker-up-web        # the same, plus the browser service for web forms
+make docker-up-web        # the same, plus the browser and the form fixture for web forms
 ```
 
 The UI is on <http://localhost:8501>, the API on <http://localhost:8000/docs>.
@@ -144,16 +144,54 @@ shows five controls on the first; the eGov *Veranstaltung auf öffentlichem Grun
 Reading the entry page alone returns a fraction of the inventory that looks like the whole
 thing, which is the worst answer available.
 
-So the browser walks the form. Per step it photographs what is there, then:
+So the browser walks the form. Per step it photographs what is there **before answering
+anything** — the picture the model reads is the form as an applicant first meets it, never one
+carrying placeholder values or the red banners a refusal leaves behind — and then:
 
-1. answers what the page marks required (`required`, `aria-required`, `aria-invalid`) and
-   every radio group, with placeholder values, repeating up to three times because
-   requiredness moves as answers are given;
+1. answers every control that is waiting for one, with placeholder values, repeating up to
+   three times because requiredness moves as answers are given. Every control, not only the
+   ones marked `required`: the KESB form marks nothing at all and the eGov wizard's dropdowns
+   are described nowhere, so a walk that answers only what it is told to answer stops on the
+   first step of both. Tick boxes are the exception — that is where consent lives, so one is
+   ticked only after the step has refused and only where the markup calls it required;
 2. presses the page's own *next* button;
 3. if the step did not change, fills and presses **again**, up to three times in all — a
    server-validated form says which fields it wanted only *after* refusing, so the second
    round knows strictly more than the first;
 4. observes, and stops when the step still does not change.
+
+Whether the step changed is decided by the controls' **names**, never by their labels. A step
+that refuses re-renders with `Feld darf nicht leer sein` appended to every caption; read by its
+labels that is a page of controls nobody has ever seen, so the walk used to conclude it had
+advanced, record the same step a second time, and photograph it covered in error text — which
+the model then read the form off. A step stays the same step while its address, its own name
+for itself and a subset of its controls hold, so a section unfolding as answers are given is
+not mistaken for a new one either.
+
+### Never submitting
+
+Advancing a wizard and submitting it are both a button press, and only one of them is allowed:
+this reads a form's field list, it does not file applications. Four things enforce that, because
+the first one alone is a promise made by a regular expression over prose:
+
+1. a button whose wording reads like a submit is never pressed, checked *before* the test for a
+   next button, so `Weiter zur zahlungspflichtigen Bestellung` is left alone; `Enter` is never
+   pressed in a text field either, since inside a `<form>` that submits it;
+2. **every request is held up before it leaves the browser.** `WEB_BLOCK_WRITES` sets how
+   strictly: `all` lets nothing but GET out, `navigation` holds page navigations and form
+   submissions to the walk's own presses of *next* while widget lookups go through, `off`
+   relies on wording alone;
+3. a request bound for a submit-shaped path is refused whatever caused it — the one check that
+   does not trust the walk's own classification, and the only thing that catches a page script
+   posting an application with nothing clicked;
+4. what was allowed and what was refused comes back with the observation and is logged, so a
+   run can be checked afterwards rather than trusted.
+
+A server-validated wizard cannot be walked without sending each step's answers, and that is
+accepted; what must never happen is the act that opens the case. `CONTEXT.md` holds the
+distinction. `docker/wizard` is a form fixture that files an application if anything slips
+through, and `tests/integration/test_never_submit.py` walks it and asserts its record of
+submissions is empty.
 
 Filling a real government form is where the time went. Seven things, nearly all silent — the
 field ends up empty and the step blames it a round later:
@@ -173,8 +211,13 @@ field ends up empty and the step blames it a round later:
   never `Enter` — Enter in a text field inside a `<form>` triggers implicit submission.
 
 - **A masked field is never empty.** `Beginn` holds `__:__`, so it looks answered and is
-  skipped. A value made only of mask characters counts as none, as does a value the field
-  marks `aria-invalid`.
+  skipped. A value made only of mask characters counts as none.
+- **`aria-invalid` describes the last submission, not the value just typed.** A
+  server-validated form marks the field in the HTML it renders and never unmarks it, because
+  nothing revalidates until the next submission. Treating that as "the value did not stick"
+  meant every candidate read back as a failure however well it went in — `4051` in a postcode
+  and `10:00` in a time field were both typed successfully, both judged refused, and the field
+  was then given up on for the rest of the walk. Whether a value stuck is read from the value.
 - **The first keystroke into a mask is eaten** moving the caret: typing `1000` into `__:__`
   gives `_0:00`, which is rejected while looking filled in. `Home` first, and the same
   keystrokes give `10:00`.

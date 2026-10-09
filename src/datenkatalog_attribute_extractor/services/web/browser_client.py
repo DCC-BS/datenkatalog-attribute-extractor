@@ -113,12 +113,41 @@ class ObservedStep:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BlockedRequest:
+    """One request the browser's guard refused to let leave."""
+
+    step: int
+    method: str
+    url: str
+    reason: str
+    """Why it was refused: `submit_path`, `write_blocked`, or `unsanctioned_navigation`."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class NetworkAudit:
+    """What a walk was allowed to send, and what it was stopped from sending.
+
+    Reported so a run can be checked rather than trusted. "No submit button was pressed" is a
+    statement about the browser service's own reasoning; "nothing left the browser for a submit
+    endpoint" is a statement about the network, and only the second one is evidence.
+    """
+
+    level: str
+    """How strictly the guard was set for this walk: `all`, `navigation`, or `off`."""
+    allowed: int
+    blocked: int
+    refusals: list[BlockedRequest] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ObservedPage:
     """One form as the browser walked it: every step it reached, and why it stopped."""
 
     url: str
     title: str
     steps: list[ObservedStep]
+    network_audit: NetworkAudit | None = None
+    """What the browser's guard let through and what it refused, where it reported it."""
     stopped_because: str
     """Why the walk ended: `no_next`, `blocked`, `unchanged`, `max_steps`, or `left_site`.
 
@@ -144,6 +173,7 @@ class BrowserClient:
         wait_ms: int,
         max_tiles: int,
         step_wait_ms: int,
+        block_writes: str = "all",
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         """Initialise the client.
@@ -156,6 +186,9 @@ class BrowserClient:
             max_tiles: Cap on the screenshot tiles requested per step.
             step_wait_ms: How long the browser waits after pressing *next* before reading the
                 step it arrived at.
+            block_writes: How strictly the browser is held back from sending anything —
+                `all`, `navigation`, or `off`. Walking a form means answering it, and the one
+                thing that must never happen is those answers reaching the authority.
             transport: Optional httpx transport, used by tests to avoid real network calls.
         """
         self._observe_url = observe_url
@@ -163,6 +196,7 @@ class BrowserClient:
         self._wait_ms = wait_ms
         self._max_tiles = max_tiles
         self._step_wait_ms = step_wait_ms
+        self._block_writes = block_writes
         self._transport = transport
 
     @property
@@ -191,6 +225,7 @@ class BrowserClient:
             "screenshots": True,
             "maxSteps": max_steps,
             "stepWaitMs": self._step_wait_ms,
+            "blockWrites": self._block_writes,
         }
 
         try:
@@ -234,10 +269,12 @@ class BrowserClient:
 
         steps = [_read_step(entry, index) for index, entry in enumerate(raw_steps, start=1) if isinstance(entry, dict)]
 
+        audit = _read_audit(body.get("network_audit"))
         page = ObservedPage(
             url=str(body.get("url") or page_url),
             title=str(body.get("title") or ""),
             steps=steps,
+            network_audit=audit,
             stopped_because=str(body.get("stopped_because") or ""),
         )
 
@@ -249,7 +286,47 @@ class BrowserClient:
             controls=sum(len(step.controls) for step in steps),
             stopped_because=page.stopped_because,
         )
+        if audit is not None:
+            # Logged on its own line, and at info: what a walk of a live form was stopped from
+            # sending is the record that answers "did this thing submit anything" months later.
+            logger.info(
+                "walk_network_audit",
+                page_url=page_url,
+                level=audit.level,
+                allowed=audit.allowed,
+                blocked=audit.blocked,
+                refused=[f"{item.reason}:{item.method} {item.url}" for item in audit.refusals],
+            )
         return page
+
+
+def _read_audit(entry: object) -> NetworkAudit | None:
+    """Read the guard's record of the walk, where the service reported one.
+
+    An older browser service reports none, which is not an error here: the client stays usable
+    against a service that has not been rebuilt yet.
+    """
+    if not isinstance(entry, dict):
+        return None
+
+    raw_entries = entry.get("entries")
+    refusals = [
+        BlockedRequest(
+            step=step if isinstance(step := item.get("step"), int) else 0,
+            method=str(item.get("method") or ""),
+            url=str(item.get("url") or ""),
+            reason=str(item.get("reason") or ""),
+        )
+        for item in (raw_entries if isinstance(raw_entries, list) else [])
+        if isinstance(item, dict) and not item.get("allowed", True)
+    ]
+
+    return NetworkAudit(
+        level=str(entry.get("level") or ""),
+        allowed=allowed if isinstance(allowed := entry.get("allowed"), int) else 0,
+        blocked=blocked if isinstance(blocked := entry.get("blocked"), int) else 0,
+        refusals=refusals,
+    )
 
 
 def _read_step(entry: dict, fallback_index: int) -> ObservedStep:

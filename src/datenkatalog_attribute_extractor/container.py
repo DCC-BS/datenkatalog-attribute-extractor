@@ -55,6 +55,7 @@ class Container(containers.DeclarativeContainer):
         wait_ms=config.provided.browser_wait_ms,
         max_tiles=config.provided.max_web_units,
         step_wait_ms=config.provided.browser_step_wait_ms,
+        block_writes=config.provided.web_block_writes,
     )
 
     web_field_agent: providers.Singleton[WebFieldExtractionAgent] = providers.Singleton(

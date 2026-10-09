@@ -264,12 +264,18 @@ LATE_VALIDATION = """
 
 
 def test_a_step_that_says_what_it_wanted_only_after_refusing_is_answered() -> None:
-    """One fill and one press would stop here, on the step whose demands had just arrived."""
+    """A step that marks nothing required is got past all the same.
+
+    It used to take two attempts here — fill what is marked, be refused, fill what the refusal
+    marked. The walk now answers every empty control on the first pass, so the demand never has
+    to be announced, and this asserts the outcome rather than the route to it. That a refusal
+    *is* acted on is covered by the wizard fixture, whose consent box is ticked only after the
+    step has said no: see `tests/integration/test_never_submit.py`.
+    """
     result = walk(html=LATE_VALIDATION, waitMs=200, maxSteps=4, stepWaitMs=300)
 
     labels = [[control["label"] for control in step["controls"]] for step in result["steps"]]
     assert labels == [["Ort", "Bemerkung"], ["Vorname"]]
-    assert result["steps"][0]["attempts"] == 2
 
 
 # Drops anything that is not digits, the way the KESB postcode field does.

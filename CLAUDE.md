@@ -12,7 +12,7 @@ make test-integration   # needs .env + a live vLLM; excluded from CI
 make dev                # API on :8000
 make dev-ui             # Streamlit UI on :8501
 make docker-up          # full stack (vLLM + API + UI) via docker-compose.dev.yml
-make docker-up-web      # the same plus the browser service (`web` compose profile)
+make docker-up-web      # the same plus the browser and the form fixture (`web` compose profile)
 make eval               # extraction quality against evals/cases; needs a live LLM
 make bootstrap-case PDF=data/x.pdf   # seed an eval case skeleton from AcroForm widgets
 make env-example        # print the AppConfig section of .env.example
@@ -196,13 +196,49 @@ Playwright on `mcr.microsoft.com/playwright`, no framework. Things that cost tim
   form in an iframe; a page-level query finds nothing there.
 - **Without a render wait the page is its loading shell.** Measured on the Vaadin form:
   3000 ms shell, 5000 ms rendered, hence `BROWSER_WAIT_MS=8000`.
-- **Never press a submit.** `SUBMIT_LABEL` is checked before `NEXT_LABEL`, so
-  `Weiter zur zahlungspflichtigen Bestellung` is left alone. This is not a nicety: the walk
-  fills in and advances a *live* government form, and the last button of a wizard sends it.
+- **Never press a submit — and do not let a label denylist be the only thing stopping it.**
+  `SUBMIT_LABEL` is checked before `NEXT_LABEL`, so `Weiter zur zahlungspflichtigen Bestellung`
+  is left alone. That is a promise made by a regex over prose, so `installWriteGuard` makes it a
+  property of the run: every request meets `decideRequest` before it leaves the browser.
+  `WEB_BLOCK_WRITES` sets the level — `all` (nothing but GET leaves; a server-validated step
+  cannot be passed, which is what an evidence run against an unfamiliar form service wants),
+  `navigation` (page navigations and form submissions are held to the walk's own presses of
+  *next*; widget lookups go through), `off`. A submit-shaped **path** is refused at every level
+  but `off`, and that check does *not* consult the sanction — it is the only layer that does not
+  inherit the label heuristic's mistakes. What was allowed and refused comes back as
+  `network_audit`.
+- **Advancing is not submitting.** A server-validated wizard cannot be walked without sending
+  the step's answers, and that is accepted; what must never happen is the act that files the
+  case. `CONTEXT.md` holds the distinction.
+- **A step is identified by its controls' names, never by their labels.** A step that refuses
+  re-renders with `Feld darf nicht leer sein` appended to every caption. Fingerprinted by label,
+  that is a page of controls nobody has seen, so the walk concluded it had advanced, recorded
+  the same step again, and photographed it covered in error banners — which the model then read
+  the form off. Identity is `name`, else `id`, else the control's position in the document
+  (`identity` in `observe.js`); a step is the same one while its URL, its `aria-current` label
+  and a *subset* of its controls hold, so a conditional section unfolding does not read as a
+  new step.
+- **`aria-invalid` says what the last submission was refused for, not whether a value stuck.**
+  Using it as `fillText`'s read-back test meant that once a server had marked a field, every
+  candidate read back as a failure however well it went in — `4051` and `10:00` were both typed
+  successfully, both judged refused, and the field was then marked `data-fill-refused` and never
+  offered another value. Whether a value stuck is a question about the value.
+- **Every control is answered, not only the marked ones**, because the KESB form marks nothing
+  at all and the eGov wizard's dropdowns are described nowhere. Tick boxes are the exception:
+  that is where consent lives, so one is ticked only after the step has refused to advance and
+  only where the markup itself calls it required.
 - **`observe.js` and the walk are not unit-tested in CI.** `tests/unit` works from canned
   observations; the browser itself is covered by `tests/integration/test_observe_js.py`
   (`RUN_BROWSER_TESTS=1`, needs `make docker-up-web`), which also checks that the saved pages
   in `tests/fixtures/*.observation.json` still observe the same way.
+- **The never-submit promise is checked against a server, not against our own reasoning.**
+  `docker/wizard` is a four-step form reproducing every way the cantonal ones have refused to be
+  walked — server-side validation announced only after a refusal, a masked postcode, a time
+  field wearing `__:__`, an autocomplete that wipes a programmatic fill, a disabled *Weiter*, a
+  framework-owned input, error text that rewrites captions, a script that POSTs to `/submit`
+  unprompted, and two final buttons that both file the application, one of them starting with
+  *Weiter*. It records every hit on `/submit`; `tests/integration/test_never_submit.py` walks it
+  and asserts that record is empty. CI cannot run this — it needs a browser.
 
 ## Conventions
 

@@ -44,3 +44,13 @@ services:
     profiles: ["web"]
     ports:
       - "${BROWSER_PORT:-3100}:3100"
+
+  # The form fixture the integration tests walk. The browser reaches it by service name; the
+  # port is published so a test can read its record of what was submitted.
+  wizard:
+    extends:
+      file: ./docker/services.compose.yml
+      service: wizard
+    profiles: ["web"]
+    ports:
+      - "${WIZARD_PORT:-3200}:3200"

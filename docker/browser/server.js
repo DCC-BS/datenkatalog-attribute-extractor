@@ -13,10 +13,19 @@
  * against are wizards — `Start / Meldende Person / Meldung / Dateiupload` — that reveal one
  * step at a time and refuse to advance until the step validates, so reading only what the
  * first render shows yields a fraction of the inventory and no sign that anything is missing.
- * The walk therefore fills the controls the page itself marks as required and presses the
- * page's own *next* button. It never presses anything that reads like a submit: a form service
+ * The walk therefore answers every control on a step — a form's own idea of what is required is
+ * routinely written down nowhere — and presses the page's own *next* button. Everything except
+ * a tick box, which is where consent lives and which is answered only once the step has refused
+ * and only where the markup itself says it is required. It never presses anything that reads like a submit: a form service
  * takes a filled-in form at its word, and a dummy report to the child protection authority is
  * not an acceptable cost of reading its field list.
+ *
+ * That the walk never presses a submit is, on its own, a promise made by a regular expression
+ * over button labels. `installWriteGuard` is what makes it a property of the run instead: every
+ * request is held up against `decideRequest` before it leaves the browser, a navigation is only
+ * let through when the walk has just pressed something it read as *next*, and anything bound
+ * for a submit-shaped path is refused whatever led to it. What was allowed and what was stopped
+ * comes back with the observation, so a run can be checked rather than trusted.
  *
  * Most of what follows is about filling in a form built out of widgets rather than inputs, and
  * every one of those lessons was paid for on a live cantonal form: see `fillText`. Where a step
@@ -107,6 +116,31 @@ const SUBMIT_LABEL =
 
 const NON_VALUE_TYPES = new Set(["hidden", "submit", "button", "reset", "image", "file"]);
 
+// How strictly the network is held back while a form is walked. Advancing a step and submitting
+// a form are both a button press on a wizard, and only one of them is allowed; the button's
+// wording is the only thing telling them apart, and a regex over prose is not a guarantee. These
+// levels are the guarantee: whatever is clicked, the request has to get past this to leave.
+//
+// * `all` — nothing but GET and HEAD leaves, and a page may not navigate itself. A step that a
+//   server validates cannot be got past at this level, which is the point: it is what an
+//   evidence run uses to find out what a form would have sent.
+// * `navigation` — form submissions and page navigations are held to the walk's own presses;
+//   the lookups a widget needs (XHR, fetch) go through whatever their method.
+// * `off` — nothing is held back. Only the label denylist is then between a walk and a submit.
+const WRITE_LEVELS = new Set(["all", "navigation", "off"]);
+const DEFAULT_WRITE_LEVEL = "all";
+
+// Refused whatever else says otherwise, at every level but `off`, and *not* excusable by the
+// walk having pressed something: this is the one check in the guard that does not trust the
+// decision that led to the request. A path is a poorer signal than a button's own wording, but
+// it is an independent one, and the two failing together is less likely than either alone.
+const SUBMIT_PATH =
+  /(submit|absenden|abschicken|einreichen|senden|bestellung|bestellen|checkout|payment|zahlung|bezahlen|order)/i;
+
+// Enough of a run's traffic to reconstruct what it did without the log becoming the response.
+const MAX_AUDIT_ENTRIES = 400;
+const MAX_AUDIT_URL_LENGTH = 300;
+
 // Values that satisfy a validator without meaning anything. They are typed into a browser we
 // own and, because no submit is ever pressed, go no further than the step being read.
 const PLACEHOLDER = {
@@ -169,6 +203,157 @@ const readJson = (request) =>
     });
     request.on("error", reject);
   });
+
+/**
+ * The path and query of a URL, which is where a submit endpoint names itself.
+ *
+ * The host is deliberately left out: a form served from `bestellungen.example.ch` would
+ * otherwise be unreadable in its entirety, and it is the endpoint being *called* that says what
+ * a request does.
+ */
+const pathOf = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname + parsed.search;
+  } catch {
+    return url;
+  }
+};
+
+/**
+ * Whether one request may leave the browser.
+ *
+ * Kept apart from the interception itself, and given everything it judges by as arguments, so
+ * that what the guard permits is one readable function rather than a property of a walk.
+ *
+ * `sanctioned` says the walk has just pressed a button it read as *next* and is expecting one
+ * navigation to follow. It is deliberately not enough on its own: a press is only ever
+ * classified by the wording on the button, so `SUBMIT_PATH` is tested first and answers to
+ * nobody. Redirects are allowed outright — a redirect only exists because the request it came
+ * from was already let through.
+ *
+ * @returns `{ allow, reason }` — the reason is recorded whichever way it went.
+ */
+const decideRequest = ({ level, method, resourceType, isRedirect, url, sanctioned, navigated }) => {
+  if (isRedirect) return { allow: true, reason: "redirect_of_allowed" };
+  if (level !== "off" && SUBMIT_PATH.test(pathOf(url))) return { allow: false, reason: "submit_path" };
+  if (level === "off") return { allow: true, reason: "guard_off" };
+
+  const write = method !== "GET" && method !== "HEAD";
+  const document = resourceType === "document";
+
+  if (level === "all" && write) return { allow: false, reason: "write_blocked" };
+  if (document) {
+    if (!sanctioned) return { allow: false, reason: "unsanctioned_navigation" };
+    // At `all`, the form is loaded and then only read. Advancing is impossible at this level
+    // anyway — the step's POST never leaves — and a form that advances by GET would otherwise
+    // carry its answers out in the query string, which is the one way an evidence run could
+    // still send something. One page load, and no second one.
+    if (level === "all" && navigated) return { allow: false, reason: "navigation_blocked" };
+    return { allow: true, reason: "sanctioned_navigation" };
+  }
+  return { allow: true, reason: "read" };
+};
+
+/**
+ * A record of what a walk was allowed to send, and what it was stopped from sending.
+ *
+ * The point of it is that a run can be checked afterwards rather than trusted: "no submit was
+ * pressed" is an assertion about this service's own reasoning, whereas "nothing left the
+ * browser for `/submit`" is an observation about the network. It is also how the shape of an
+ * unfamiliar form service is learned — which of its steps are validated on the server, and
+ * what a press actually sends — without letting any of it through.
+ */
+const newAudit = (level) => ({
+  level,
+  step: 0,
+  sanctioned: 0,
+  navigations: 0,
+  allowed: 0,
+  blocked: 0,
+  entries: [],
+});
+
+/** Write one decision into the record, whichever way it went. */
+const record = (audit, { method, resourceType, url, allow, reason }) => {
+  if (allow) audit.allowed += 1;
+  else audit.blocked += 1;
+  if (audit.entries.length >= MAX_AUDIT_ENTRIES) return;
+  // Allowed reads are the bulk of the traffic and say nothing; everything refused, and
+  // everything that was allowed to send, is kept.
+  if (allow && method === "GET") return;
+  audit.entries.push({
+    step: audit.step,
+    method,
+    resource_type: resourceType,
+    url: url.slice(0, MAX_AUDIT_URL_LENGTH),
+    allowed: allow,
+    reason,
+  });
+};
+
+/** Permit the one navigation a press of *next* is expected to cause. */
+const sanction = (audit) => {
+  audit.sanctioned += 1;
+};
+
+/**
+ * Hold everything leaving this context up against the guard, and write down how it went.
+ *
+ * Three ways out of a browser, and the guard is worth nothing unless it covers all of them.
+ * `context.route` sees ordinary requests. It does *not* see a websocket, and it does not see a
+ * request made from inside a service worker — a form service that pushed over either would send
+ * whatever it liked with the guard reporting a quiet run. Websockets are refused outright below;
+ * service workers are stopped from registering at all when the context is created.
+ */
+const installWriteGuard = async (context, audit) => {
+  await context.route("**/*", async (route) => {
+    const request = route.request();
+    const method = request.method().toUpperCase();
+    const resourceType = request.resourceType();
+    const decision = decideRequest({
+      level: audit.level,
+      method,
+      resourceType,
+      isRedirect: request.redirectedFrom() !== null,
+      url: request.url(),
+      sanctioned: audit.sanctioned > 0,
+      navigated: audit.navigations > 0,
+    });
+
+    // A sanction covers one navigation. Spending it here rather than when the button was
+    // pressed means a press that causes no request at all does not leave a permission lying
+    // about for whatever the page does next.
+    if (decision.reason === "sanctioned_navigation") {
+      audit.sanctioned -= 1;
+      audit.navigations += 1;
+    }
+
+    record(audit, { method, resourceType, url: request.url(), allow: decision.allow, reason: decision.reason });
+
+    if (decision.allow) await route.continue().catch(() => {});
+    else await route.abort().catch(() => {});
+  });
+
+  // A websocket carries anything in either direction and `context.route` never sees it, so
+  // there is nothing to hold up against the guard: at any level but `off` it is closed before it
+  // is connected to the server. Reading a form does not need one, and the stacks these forms are
+  // built on — Vaadin among them — can push over one.
+  if (audit.level !== "off") {
+    await context
+      .routeWebSocket("**", (ws) => {
+        record(audit, {
+          method: "WEBSOCKET",
+          resourceType: "websocket",
+          url: ws.url(),
+          allow: false,
+          reason: "websocket_blocked",
+        });
+        ws.close();
+      })
+      .catch(() => {});
+  }
+};
 
 // Scrolling the *form*, which is not always scrolling the window. An application shell puts
 // its content in an inner pane and leaves the document itself the height of the viewport;
@@ -421,13 +606,21 @@ const fillText = async (page, handle, type) => {
     await pause(AUTOCOMPLETE_COMMIT_MS);
   };
 
-  /** What the control is holding, or "" for nothing, its bare mask, or a value it rejects. */
+  /**
+   * What the control is holding, or "" for nothing and for its bare mask.
+   *
+   * `aria-invalid` is deliberately *not* consulted. It used to count as failure here, on the
+   * reasoning that a widget which rejects a value marks itself — but a server-validated form
+   * marks the field in the HTML it renders and never unmarks it, because nothing revalidates
+   * until the next submission. Every candidate then read back as a failure however well it had
+   * gone in: `4051` in a postcode and `10:00` in a time field were both typed successfully, both
+   * judged refused, and the field was given up on for the rest of the walk. Whether a value
+   * stuck is a question about the value.
+   */
   const valueOf = async () => {
-    const state = await handle
-      .evaluate((element) => ({ value: element.value, invalid: element.getAttribute("aria-invalid") === "true" }))
-      .catch(() => null);
-    if (!state || state.invalid) return "";
-    return MASK_ONLY.test(state.value) ? "" : state.value;
+    const value = await handle.evaluate((element) => element.value).catch(() => null);
+    if (typeof value !== "string") return "";
+    return MASK_ONLY.test(value) ? "" : value;
   };
 
   const candidates = suggests ? [...SEARCH_PREFIXES, ...typed] : typed;
@@ -436,14 +629,11 @@ const fillText = async (page, handle, type) => {
   // opening it and taking what it offers. Nothing is typed, so nothing has to be recognised.
   if (suggests) {
     await open();
-    if (await pick()) {
-      // Such a control keeps its selection somewhere other than `value`; that an option was
-      // taken is the answer, and the step will say soon enough if it was not enough.
-      const state = await handle
-        .evaluate((element) => element.getAttribute("aria-invalid") !== "true")
-        .catch(() => true);
-      if (state) return true;
-    }
+    // Such a control keeps its selection somewhere other than `value`; that an option was taken
+    // is the whole answer, and the step will say soon enough if it was not enough. Its
+    // `aria-invalid` is not consulted for the same reason `valueOf` does not: on a
+    // server-validated form that attribute describes the last submission, not this value.
+    if (await pick()) return true;
   }
 
   for (const candidate of candidates) {
@@ -472,33 +662,29 @@ const fillText = async (page, handle, type) => {
 };
 
 /**
- * Answer the controls the page demands an answer to, once over.
+ * Answer every control on the step that is waiting for an answer, once over.
  *
- * Two things are answered: whatever the page marks as required, and every radio group. Free
- * text, tick boxes and dropdowns are left alone unless marked — filling those would open
- * conditional sections and find more fields, at the price of a form state no applicant would
- * produce, and the point here is to get past a validator rather than to exercise the form.
+ * *Every* control, from the first attempt, and not only the ones the page marks as required.
+ * Marked requiredness was tried first and is not good enough to walk on: the KESB form marks
+ * nothing at all — no `required`, no `aria-required`, nothing even after it has refused to
+ * advance and said in prose that the field is mandatory — and the eGov wizard's third step will
+ * not move until two dropdowns nothing describes are answered. A walk that answers only what it
+ * is told to answer stops on the first step of both, and reports a wizard as five fields.
  *
- * `everything` widens that to every empty control, and is used only once the page has said it
- * is not satisfied — a next button that stays disabled. It exists because a form's own idea of
- * what is required is not always written down anywhere: the eGov wizard's third step will not
- * advance until two React-Select dropdowns are answered, and neither they nor anything around
- * them carries `required`, `aria-required` or `aria-invalid`. Widening on evidence rather than
- * by default keeps the ordinary case honest and the stuck case readable.
- *
- * Radio groups are the exception because they have to be. The KESB form marks nothing at all:
- * no `required`, no `aria-required`, and no `aria-invalid` even after it has just refused to
- * advance and said in prose that the field is mandatory. Its first step is a single radio
- * group, so a walk that only answers marked controls never leaves that step, and the whole
- * wizard reads as five fields. A radio group is also the safest thing to answer blind: it is a
- * choice the form is asking for, exactly one option ends up set, and nothing is typed.
+ * Tick boxes are the exception, and `checkboxes` is what lifts it — only once the step has
+ * refused to advance, and even then only for boxes the page itself marks as required. A tick
+ * box is where consent lives: *Ich akzeptiere die AGB*, *kostenpflichtig bestellen*. Ticking one
+ * unasked is this project agreeing to something on somebody's behalf, so it is done only when
+ * the form has stated in markup that it is mandatory and has already refused to go on without
+ * it. Radio groups are not consent — the form is asking a question, exactly one option ends up
+ * set, and nothing is typed — so they are answered from the start.
  *
  * Values go in through Playwright rather than by assigning `element.value`, which a
  * React-controlled input ignores outright — the framework owns the value and never learns of
  * the assignment, so the field looks filled and validates as empty. That is what the eGov
  * wizard does, and its next button stays disabled until the framework itself is convinced.
  */
-const fillRequired = async (page, everything = false) => {
+const fillRequired = async (page, checkboxes = false) => {
   let filled = 0;
 
   for (const { handle } of await handlesAcrossFrames(page, "input, select, textarea")) {
@@ -541,7 +727,9 @@ const fillRequired = async (page, everything = false) => {
       })
       .catch(() => null);
 
-    const wanted = info && (info.required || info.type === "radio" || everything);
+    // Everything is answered except a tick box, which waits for the step to have refused and
+    // for the page to have said the box is required.
+    const wanted = info && (info.type === "checkbox" ? checkboxes && info.required : true);
     if (!info || !info.usable || !wanted || NON_VALUE_TYPES.has(info.type)) {
       await handle.dispose().catch(() => {});
       continue;
@@ -573,6 +761,26 @@ const fillRequired = async (page, everything = false) => {
   }
 
   return filled;
+};
+
+/**
+ * Forget which controls were given up on.
+ *
+ * The mark is what stops three stubborn address fields being retyped on every round of every
+ * attempt, and it is right to carry it across the attempts on *one* step. Carrying it into the
+ * next step is not: a single-page wizard keeps the same elements between steps, and a control
+ * refused while the step it belonged to was unsatisfied would then never be offered a value
+ * again. Called when a new step is reached.
+ */
+const forgetFillMarks = async (page) => {
+  for (const frame of page.frames()) {
+    await frame
+      .evaluate(
+        (marker) => document.querySelectorAll(`[${marker}]`).forEach((element) => element.removeAttribute(marker)),
+        GIVEN_UP,
+      )
+      .catch(() => {});
+  }
 };
 
 /**
@@ -696,9 +904,47 @@ const stepLabel = (page) =>
     })
     .catch(() => "");
 
-/** What the step being looked at consists of, as a value that changes when the step does. */
-const fingerprintOf = (controls) =>
-  controls.map((control) => `${control.kind}${control.label}${control.name}`).join("");
+/**
+ * What the step being looked at consists of, by the *identity* of its controls.
+ *
+ * Never by the words printed next to them. A step that refuses to advance re-renders with its
+ * captions rewritten — `Vorname` becomes `Vorname — Feld darf nicht leer sein` — and read by its
+ * labels that is a page full of controls nobody has ever seen. The walk concluded it had
+ * advanced, recorded the same step again, and photographed it covered in error banners, which is
+ * then what the model is handed as a picture of the form. Names do not move when a form scolds.
+ *
+ * Duplicates are numbered rather than collapsed, so ten identically named tick boxes are ten
+ * keys, and a control appearing *between* two others shifts nothing.
+ */
+const stepKeys = (controls) => {
+  const seen = new Map();
+  return controls.map((control) => {
+    const key = `${control.kind}|${control.identity || control.name}`;
+    const count = (seen.get(key) || 0) + 1;
+    seen.set(key, count);
+    return `${key}|${count}`;
+  });
+};
+
+/**
+ * Whether two observations are of the same step.
+ *
+ * Three signals, and the page has to disagree on one of them before this counts as a new step:
+ * the address, what the page calls the step it is on, and the controls standing on it.
+ *
+ * The controls are compared as a *subset*, not for equality, because answering a form reveals
+ * more of it: "Reservationsantrag: ja" unfolds three further fields with the step unchanged. A
+ * step that has gained controls is the same step; one that has lost a control is not.
+ */
+const sameStep = (before, after) =>
+  before.url === after.url && before.label === after.label && before.keys.every((key) => after.keys.includes(key));
+
+/** Everything that identifies the step now on screen, together with what was observed of it. */
+const stepStateOf = async (page) => {
+  const observed = await observeFrames(page);
+  const controls = flattenControls(observed);
+  return { url: page.url(), label: await stepLabel(page), keys: stepKeys(controls), controls, observed };
+};
 
 /**
  * Read one step, then try to advance to the next.
@@ -706,16 +952,19 @@ const fingerprintOf = (controls) =>
  * Returns why it stopped, which the caller reports: a partial inventory that says so is usable,
  * one that does not is a wrong answer dressed as a complete list.
  */
-const walkSteps = async (page, { maxSteps, maxTiles, tileOverlap, screenshots, autofill, stepWaitMs }) => {
+const walkSteps = async (page, { maxSteps, maxTiles, tileOverlap, screenshots, autofill, stepWaitMs, audit }) => {
   const origin = new URL(page.url()).origin;
   const steps = [];
   const seen = new Set();
   let stopped = "max_steps";
 
   for (let index = 1; index <= maxSteps; index += 1) {
-    const observed = await observeFrames(page);
-    const controls = flattenControls(observed);
-    const fingerprint = fingerprintOf(controls);
+    audit.step = index;
+    // A fresh step knows nothing about which controls the last one gave up on.
+    await forgetFillMarks(page);
+    const state = await stepStateOf(page);
+    const { observed, controls } = state;
+    const fingerprint = `${state.url}|${state.label}|${state.keys.join(",")}`;
 
     if (seen.has(fingerprint)) {
       stopped = "unchanged";
@@ -725,8 +974,8 @@ const walkSteps = async (page, { maxSteps, maxTiles, tileOverlap, screenshots, a
 
     steps.push({
       index,
-      label: await stepLabel(page),
-      url: page.url(),
+      label: state.label,
+      url: state.url,
       title: observed[0] ? observed[0].observation.title : "",
       controls,
       tiles: screenshots ? await screenshotTiles(page, observed, maxTiles, tileOverlap) : [],
@@ -745,11 +994,10 @@ const walkSteps = async (page, { maxSteps, maxTiles, tileOverlap, screenshots, a
     let advanced = false;
 
     // Fill, press, and — if the page refused — fill again and press again. The later rounds are
-    // not retries of the same thing. A server-validated form answers the first Weiter by
-    // marking the fields it wanted, so the second fill knows more than the first; and where the
-    // page will not even let the button be pressed, the fill widens to every empty control,
-    // because a form whose next button stays disabled is one whose requirements are not
-    // written down anywhere this can read.
+    // not retries of the same thing: a server-validated form answers the first Weiter by marking
+    // the fields it wanted, so the second fill knows strictly more than the first. Once the step
+    // has refused, the fill also widens to tick boxes the page marks required, which is the only
+    // circumstance in which one is ever ticked.
     let blocked = false;
 
     for (let attempt = 0; attempt < ADVANCE_ATTEMPTS && !advanced; attempt += 1) {
@@ -786,6 +1034,10 @@ const walkSteps = async (page, { maxSteps, maxTiles, tileOverlap, screenshots, a
       current.attempts = attempt + 1;
 
       await next.handle.scrollIntoViewIfNeeded().catch(() => {});
+      // The one navigation this press is entitled to. Anything else the page tries — a redirect
+      // to a payment page, a script submitting the form behind the click — meets the guard
+      // without a permission and is refused.
+      sanction(audit);
       // Forced, because a step button is routinely covered by a sticky footer or an overlay
       // and an actionability check then times out on a button a person can plainly press. The
       // element was already established to be visible and enabled.
@@ -800,7 +1052,11 @@ const walkSteps = async (page, { maxSteps, maxTiles, tileOverlap, screenshots, a
         break;
       }
 
-      advanced = fingerprintOf(flattenControls(await observeFrames(page))) !== fingerprint;
+      advanced = !sameStep(state, await stepStateOf(page));
+      // The step was pressed and stayed put, which is the page saying it is not satisfied — the
+      // same statement a disabled button makes, arriving later. From here a tick box the page
+      // marks required may be answered.
+      if (!advanced) blocked = true;
       // Nothing was filled and the page did not move: pressing again would only repeat itself.
       if (!advanced && !autofill) break;
     }
@@ -826,11 +1082,18 @@ const observe = async ({
   maxSteps = 1,
   autofill = true,
   stepWaitMs = 5000,
+  blockWrites = DEFAULT_WRITE_LEVEL,
 }) => {
   const context = await browser.newContext({
     viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT },
     deviceScaleFactor: 1,
+    // A service worker's requests do not pass through `context.route`, so anything sent from
+    // inside one would leave without meeting the guard at all. Nothing about reading a form
+    // needs one.
+    serviceWorkers: "block",
   });
+  const audit = newAudit(WRITE_LEVELS.has(blockWrites) ? blockWrites : DEFAULT_WRITE_LEVEL);
+  await installWriteGuard(context, audit);
   await context.addInitScript({ content: observeInit });
   await context.addInitScript({ content: SCROLL_INIT });
   const page = await context.newPage();
@@ -850,6 +1113,8 @@ const observe = async ({
     if (html) {
       await page.setContent(html, { waitUntil: "load", timeout: NAVIGATION_TIMEOUT_MS });
     } else {
+      // The run's own navigation, which is as sanctioned as a navigation gets.
+      sanction(audit);
       const response = await page.goto(url, { waitUntil: "load", timeout: NAVIGATION_TIMEOUT_MS });
       status = response ? response.status() : 0;
     }
@@ -870,6 +1135,7 @@ const observe = async ({
       screenshots,
       autofill,
       stepWaitMs,
+      audit,
     });
 
     return {
@@ -878,6 +1144,12 @@ const observe = async ({
       title: steps.length ? steps[0].title : "",
       steps,
       stopped_because: stopped,
+      network_audit: {
+        level: audit.level,
+        allowed: audit.allowed,
+        blocked: audit.blocked,
+        entries: audit.entries,
+      },
     };
   } finally {
     await context.close();

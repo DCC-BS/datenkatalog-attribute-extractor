@@ -60,6 +60,17 @@ class AppConfig(LlmConfig):
         ge=0,
         description="Milliseconds the browser waits after pressing a form's next button before reading the step it arrived at",
     )
+    web_block_writes: str = Field(
+        default="all",
+        pattern="^(all|navigation|off)$",
+        description=(
+            "How strictly the browser is stopped from sending anything while walking a form. "
+            "`all` lets nothing but GET out, so a step a server validates cannot be passed; "
+            "`navigation` holds page navigations and form submissions to the walk's own presses "
+            "of a next button; `off` relies on button wording alone. Requests to a submit-shaped "
+            "path are refused at every level but `off`"
+        ),
+    )
     web_max_steps: int = Field(
         default=10,
         ge=1,
@@ -127,6 +138,7 @@ class AppConfig(LlmConfig):
             browser_timeout=int(os.getenv("BROWSER_TIMEOUT", "600")),
             browser_wait_ms=int(os.getenv("BROWSER_WAIT_MS", "8000")),
             browser_step_wait_ms=int(os.getenv("BROWSER_STEP_WAIT_MS", "5000")),
+            web_block_writes=os.getenv("WEB_BLOCK_WRITES", "all"),
             web_max_steps=int(os.getenv("WEB_MAX_STEPS", "10")),
             max_web_units=int(os.getenv("MAX_WEB_UNITS", "30")),
             web_screens_per_call=int(os.getenv("WEB_SCREENS_PER_CALL", "4")),
@@ -155,6 +167,7 @@ class AppConfig(LlmConfig):
             f"browser_timeout={self.browser_timeout}, "
             f"browser_wait_ms={self.browser_wait_ms}, "
             f"browser_step_wait_ms={self.browser_step_wait_ms}, "
+            f"web_block_writes={self.web_block_writes}, "
             f"web_max_steps={self.web_max_steps}, "
             f"max_web_units={self.max_web_units}, "
             f"web_screens_per_call={self.web_screens_per_call})"
